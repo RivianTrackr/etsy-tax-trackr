@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Etsy Tax Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .login-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .login-card {
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 36px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 2px 12px var(--shadow);
+    }
+    .login-card header {
+      margin-bottom: 28px;
+    }
+    .login-card h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--charcoal);
+      margin-bottom: 6px;
+    }
+    .login-card .subtitle {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .login-card label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brown);
+      margin-bottom: 5px;
+      margin-top: 16px;
+    }
+    .login-card input[type=text],
+    .login-card input[type=password] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      background: var(--cream);
+      color: var(--charcoal);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .login-card input:focus {
+      border-color: var(--terracotta);
+      background: #fff;
+    }
+    .login-card .btn {
+      width: 100%;
+      margin-top: 24px;
+      padding: 11px;
+      font-size: 14px;
+      justify-content: center;
+    }
+    .login-card .error {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: var(--terracotta-pale);
+      color: var(--terracotta);
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+    .login-card .setup-note {
+      margin-top: 16px;
+      padding: 12px 14px;
+      background: var(--sage-pale);
+      color: var(--sage);
+      border-radius: 8px;
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="login-card">
+    <header>
+      <div class="eyebrow" style="font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--terracotta);margin-bottom:10px;">✦ Self-Employment Tax Tool</div>
+      <h1>Etsy Tax Tracker</h1>
+      <p class="subtitle" id="subtitle">Sign in to continue</p>
+    </header>
+
+    <form id="authForm" onsubmit="handleSubmit(event)">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" required />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required />
+
+      <div id="confirmGroup" style="display:none;">
+        <label for="confirmPassword">Confirm Password</label>
+        <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" />
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="submitBtn">Sign In</button>
+
+      <div class="error" id="error"></div>
+      <div class="setup-note" id="setupNote" style="display:none;">
+        First time here! Create your login to secure your data.
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let isSetup = false;
+
+  async function init() {
+    try {
+      const res = await fetch('/api/auth/status');
+      const data = await res.json();
+
+      if (data.loggedIn) {
+        window.location.href = '/';
+        return;
+      }
+
+      if (data.needsSetup) {
+        isSetup = true;
+        document.getElementById('subtitle').textContent = 'Create your account';
+        document.getElementById('submitBtn').textContent = 'Create Account';
+        document.getElementById('confirmGroup').style.display = 'block';
+        document.getElementById('confirmPassword').required = true;
+        document.getElementById('setupNote').style.display = 'block';
+        document.getElementById('password').autocomplete = 'new-password';
+      }
+    } catch (e) {
+      showError('Could not connect to server');
+    }
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (isSetup) {
+      const confirm = document.getElementById('confirmPassword').value;
+      if (password !== confirm) {
+        showError('Passwords do not match');
+        return;
+      }
+      if (password.length < 6) {
+        showError('Password must be at least 6 characters');
+        return;
+      }
+    }
+
+    const url = isSetup ? '/api/auth/setup' : '/api/auth/login';
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        window.location.href = '/';
+      } else {
+        showError(data.error || 'Something went wrong');
+      }
+    } catch (err) {
+      showError('Could not connect to server');
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  init();
+</script>
+</body>
+</html>
