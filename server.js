@@ -130,11 +130,15 @@ app.post('/api/auth/setup', (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
-  const hash = bcrypt.hashSync(password, 10);
-  db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username.trim(), hash);
-  req.session.userId = db.prepare('SELECT id FROM users WHERE username = ?').get(username.trim()).id;
-
-  res.json({ ok: true });
+  try {
+    const hash = bcrypt.hashSync(password, 10);
+    db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username.trim(), hash);
+    req.session.userId = db.prepare('SELECT id FROM users WHERE username = ?').get(username.trim()).id;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Setup error:', err);
+    res.status(500).json({ error: err.message || 'Setup failed' });
+  }
 });
 
 // Login
