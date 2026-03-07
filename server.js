@@ -61,7 +61,7 @@ app.use(session({
     maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
     httpOnly: true,
     sameSite: 'lax',
-    path: BASE_PATH || '/',
+    path: '/',
   },
 }));
 
