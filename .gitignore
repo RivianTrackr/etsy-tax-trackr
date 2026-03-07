@@ -1,2 +1,6 @@
 node_modules/
 data.json
+data.json.migrated
+tax_data.db
+tax_data.db-wal
+tax_data.db-shm
