@@ -9,6 +9,7 @@ const path     = require('path');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
+const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/+$/, ''); // e.g. '/ashley'
 const DB_PATH  = path.join(__dirname, 'tax_data.db');
 const OLD_JSON = path.join(__dirname, 'data.json');
 
@@ -60,6 +61,7 @@ app.use(session({
     maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
     httpOnly: true,
     sameSite: 'lax',
+    path: BASE_PATH || '/',
   },
 }));
 
@@ -74,24 +76,31 @@ function requireAuth(req, res, next) {
 }
 
 // ── Static files — login.html is public, index.html requires auth ───────
+// Inject BASE_PATH into HTML files so the frontend knows the mount point
+function serveHtmlWithBasePath(filePath, res) {
+  let html = fs.readFileSync(filePath, 'utf8');
+  html = html.replace('<head>', `<head>\n  <script>window.__BASE_PATH__ = '${BASE_PATH}';</script>`);
+  res.type('html').send(html);
+}
+
 // Serve login.html and its assets without auth
 app.get('/login.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
+  serveHtmlWithBasePath(path.join(__dirname, 'login.html'), res);
 });
 
 // Protect index.html — redirect to login if not authenticated
-app.get('/', (req, res, next) => {
+app.get('/', (req, res) => {
   if (!req.session || !req.session.userId) {
-    return res.redirect('/login.html');
+    return res.redirect(BASE_PATH + '/login.html');
   }
-  next();
+  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), res);
 });
 
 app.get('/index.html', (req, res) => {
   if (!req.session || !req.session.userId) {
-    return res.redirect('/login.html');
+    return res.redirect(BASE_PATH + '/login.html');
   }
-  res.sendFile(path.join(__dirname, 'index.html'));
+  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), res);
 });
 
 // Static files (CSS, JS, fonts) — served to everyone

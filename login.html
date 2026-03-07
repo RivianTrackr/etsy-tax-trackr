@@ -122,15 +122,16 @@
 </div>
 
 <script>
+  const BASE = window.__BASE_PATH__ || '';
   let isSetup = false;
 
   async function init() {
     try {
-      const res = await fetch('/api/auth/status');
+      const res = await fetch(BASE + '/api/auth/status');
       const data = await res.json();
 
       if (data.loggedIn) {
-        window.location.href = '/';
+        window.location.href = BASE + '/';
         return;
       }
 
@@ -165,7 +166,7 @@
       }
     }
 
-    const url = isSetup ? '/api/auth/setup' : '/api/auth/login';
+    const url = isSetup ? BASE + '/api/auth/setup' : BASE + '/api/auth/login';
 
     try {
       const res = await fetch(url, {
@@ -176,7 +177,7 @@
       const data = await res.json();
 
       if (res.ok) {
-        window.location.href = '/';
+        window.location.href = BASE + '/';
       } else {
         showError(data.error || 'Something went wrong');
       }

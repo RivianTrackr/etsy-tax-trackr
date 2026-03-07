@@ -1,4 +1,5 @@
 // ── Data ─────────────────────────────────────────────────────────────────
+const BASE = window.__BASE_PATH__ || '';
 const STORAGE_KEY = 'etsyTaxData2026';
 const DEFAULTS = { income: [], expenses: [], federalRate: 12, seRate: 15.3, setAside: 0 };
 let data = { ...DEFAULTS };
@@ -13,9 +14,9 @@ const quarters = [
 // ── Persistence ───────────────────────────────────────────────────────────
 async function loadData() {
   try {
-    const res = await fetch('/api/data');
+    const res = await fetch(BASE + '/api/data');
     if (res.status === 401) {
-      window.location.href = '/login.html';
+      window.location.href = BASE + '/login.html';
       return;
     }
     if (res.ok) {
@@ -51,7 +52,7 @@ function migrateData() {
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  fetch('/api/data', {
+  fetch(BASE + '/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -208,8 +209,8 @@ function updateSetAside(val)    { data.setAside    = parseFloat(val) || 0; save(
 
 // ── Auth ──────────────────────────────────────────────────────────────────
 async function logout() {
-  await fetch('/api/auth/logout', { method: 'POST' });
-  window.location.href = '/login.html';
+  await fetch(BASE + '/api/auth/logout', { method: 'POST' });
+  window.location.href = BASE + '/login.html';
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
