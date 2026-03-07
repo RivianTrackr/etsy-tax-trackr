@@ -1,5 +1,9 @@
 const express  = require('express');
 const Database = require('better-sqlite3');
+const session  = require('express-session');
+const SqliteStore = require('better-sqlite3-session-store')(session);
+const bcrypt   = require('bcryptjs');
+const crypto   = require('crypto');
 const fs       = require('fs');
 const path     = require('path');
 
@@ -9,7 +13,7 @@ const DB_PATH  = path.join(__dirname, 'tax_data.db');
 const OLD_JSON = path.join(__dirname, 'data.json');
 
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.urlencoded({ extended: false }));
 
 // ── Database setup ──────────────────────────────────────────────────────
 const db = new Database(DB_PATH);
@@ -36,7 +40,117 @@ db.exec(`
     desc   TEXT,
     amount REAL NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL
+  );
 `);
+
+// ── Session setup ───────────────────────────────────────────────────────
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+app.use(session({
+  store: new SqliteStore({ client: db, expired: { clear: true, intervalMs: 900000 } }),
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+    httpOnly: true,
+    sameSite: 'lax',
+  },
+}));
+
+// ── Auth helpers ─────────────────────────────────────────────────────────
+function hasUsers() {
+  return db.prepare('SELECT COUNT(*) AS n FROM users').get().n > 0;
+}
+
+function requireAuth(req, res, next) {
+  if (req.session && req.session.userId) return next();
+  res.status(401).json({ error: 'Not authenticated' });
+}
+
+// ── Static files — login.html is public, index.html requires auth ───────
+// Serve login.html and its assets without auth
+app.get('/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+// Protect index.html — redirect to login if not authenticated
+app.get('/', (req, res, next) => {
+  if (!req.session || !req.session.userId) {
+    return res.redirect('/login.html');
+  }
+  next();
+});
+
+app.get('/index.html', (req, res) => {
+  if (!req.session || !req.session.userId) {
+    return res.redirect('/login.html');
+  }
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Static files (CSS, JS, fonts) — served to everyone
+app.use(express.static(__dirname));
+
+// ── Auth API routes ─────────────────────────────────────────────────────
+
+// Check if setup is needed
+app.get('/api/auth/status', (req, res) => {
+  res.json({
+    needsSetup: !hasUsers(),
+    loggedIn: !!(req.session && req.session.userId),
+  });
+});
+
+// First-run setup — create initial user
+app.post('/api/auth/setup', (req, res) => {
+  if (hasUsers()) {
+    return res.status(403).json({ error: 'Setup already completed' });
+  }
+
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  const hash = bcrypt.hashSync(password, 10);
+  db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username.trim(), hash);
+  req.session.userId = db.prepare('SELECT id FROM users WHERE username = ?').get(username.trim()).id;
+
+  res.json({ ok: true });
+});
+
+// Login
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+
+  const user = db.prepare('SELECT id, password FROM users WHERE username = ?').get(username.trim());
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+
+  req.session.userId = user.id;
+  res.json({ ok: true });
+});
+
+// Logout
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
+    res.json({ ok: true });
+  });
+});
 
 // ── Migrate from data.json if it exists ─────────────────────────────────
 function migrateFromJson() {
@@ -44,7 +158,7 @@ function migrateFromJson() {
 
   const count = db.prepare('SELECT COUNT(*) AS n FROM income').get().n
               + db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n;
-  if (count > 0) return; // already have data, skip
+  if (count > 0) return;
 
   try {
     const raw  = JSON.parse(fs.readFileSync(OLD_JSON, 'utf8'));
@@ -65,7 +179,6 @@ function migrateFromJson() {
     });
 
     migrate();
-    // Rename old file so it's not re-read but still recoverable
     fs.renameSync(OLD_JSON, OLD_JSON + '.migrated');
     console.log('Migrated data.json → SQLite');
   } catch (err) {
@@ -87,8 +200,8 @@ const stmts = {
   upsertSetting: db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)'),
 };
 
-// ── GET /api/data — return all data ─────────────────────────────────────
-app.get('/api/data', (req, res) => {
+// ── Protected API routes ────────────────────────────────────────────────
+app.get('/api/data', requireAuth, (req, res) => {
   const income   = stmts.allIncome.all();
   const expenses = stmts.allExpenses.all();
   const settings = Object.fromEntries(stmts.allSettings.all().map(r => [r.key, r.value]));
@@ -102,27 +215,23 @@ app.get('/api/data', (req, res) => {
   });
 });
 
-// ── POST /api/data — full save (keeps frontend compatibility) ───────────
-app.post('/api/data', (req, res) => {
+app.post('/api/data', requireAuth, (req, res) => {
   const body = req.body;
   if (!body || typeof body !== 'object') {
     return res.status(400).json({ error: 'Invalid data' });
   }
 
   const sync = db.transaction(() => {
-    // Rebuild income
     db.exec('DELETE FROM income');
     for (const e of (body.income || [])) {
       stmts.insertIncome.run(e.date || null, e.desc || null, parseFloat(e.amount) || 0);
     }
 
-    // Rebuild expenses
     db.exec('DELETE FROM expenses');
     for (const e of (body.expenses || [])) {
       stmts.insertExpense.run(e.date || null, e.cat || null, e.desc || null, parseFloat(e.amount) || 0);
     }
 
-    // Settings
     stmts.upsertSetting.run('federalRate', String(body.federalRate ?? 12));
     stmts.upsertSetting.run('seRate',      String(body.seRate ?? 15.3));
     stmts.upsertSetting.run('setAside',    String(body.setAside ?? 0));

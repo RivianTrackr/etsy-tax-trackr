@@ -14,6 +14,10 @@ const quarters = [
 async function loadData() {
   try {
     const res = await fetch('/api/data');
+    if (res.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
     if (res.ok) {
       data = await res.json();
       migrateData();
@@ -201,6 +205,12 @@ function deleteEntry(type, idx) {
 function updateFederalRate(val) { data.federalRate = parseFloat(val) || 0; save(); render(); }
 function updateSeRate(val)      { data.seRate      = parseFloat(val) || 0; save(); render(); }
 function updateSetAside(val)    { data.setAside    = parseFloat(val) || 0; save(); render(); }
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login.html';
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────
 const today = new Date().toISOString().split('T')[0];
