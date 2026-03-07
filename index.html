@@ -6,15 +6,22 @@
   <title>Etsy Tax Tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="app">
 
   <header>
-    <div class="eyebrow">✦ Self-Employment Tax Tool</div>
+    <div class="eyebrow">&#10022; Self-Employment Tax Tool</div>
     <h1>Etsy Tax Tracker</h1>
-    <p>Log your weekly Etsy payouts &amp; deductible expenses — your withholding adjusts automatically</p>
-    <button class="btn-logout" onclick="logout()">Sign Out</button>
+    <p>Log your weekly Etsy payouts &amp; deductible expenses &mdash; your withholding adjusts automatically</p>
+    <div class="header-controls">
+      <div class="year-selector">
+        <label for="yearSelect">Tax Year:</label>
+        <select id="yearSelect" onchange="changeYear(this.value)"></select>
+      </div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
   </header>
 
   <!-- Summary Cards -->
@@ -41,12 +48,33 @@
     </div>
   </div>
 
+  <!-- Dashboard Charts -->
+  <div class="charts-section">
+    <div class="section">
+      <div class="section-header">
+        <h2>Dashboard</h2>
+        <span class="badge income">Visual Overview</span>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-container">
+          <canvas id="monthlyChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="categoryChart"></canvas>
+        </div>
+        <div class="chart-container chart-wide">
+          <canvas id="profitChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Tax Rate Controls -->
   <div class="tax-rate-panel">
     <div class="tax-rate-row">
       <div class="rate-info">
         <label for="federalRate">Federal Income Tax Rate</label>
-        <span class="rate-hint">Your marginal bracket — 10%, 12%, 22%, 24%, 32%...</span>
+        <span class="rate-hint">Your marginal bracket &mdash; 10%, 12%, 22%, 24%, 32%...</span>
       </div>
       <input type="range" id="federalRate" min="0" max="37" value="12" step="1" oninput="updateFederalRate(this.value)">
       <span class="rate-val" id="federalRateDisplay">12.0%</span>
@@ -74,7 +102,7 @@
     <div class="section">
       <div class="section-header">
         <h2>Weekly Payouts</h2>
-        <span class="badge income">Net — fees already deducted</span>
+        <span class="badge income">Net &mdash; fees already deducted</span>
       </div>
       <div class="entry-form">
         <div class="form-row three">
@@ -121,11 +149,35 @@
 
   </div>
 
+  <!-- Mileage Tracker -->
+  <div class="mileage-section">
+    <div class="section">
+      <div class="section-header">
+        <h2>Mileage Tracker</h2>
+        <span class="badge expense" id="mileageRateBadge">IRS rate: $0.70/mi</span>
+      </div>
+      <div class="entry-form">
+        <div class="form-row three">
+          <input type="date" id="mileageDate" />
+          <input type="text" id="mileageDesc" placeholder="Trip purpose (e.g. Post Office)" />
+          <input type="number" id="mileageMiles" placeholder="Miles driven" min="0" step="0.1" />
+        </div>
+        <div class="mileage-form-footer">
+          <button class="btn btn-primary" onclick="addMileage()">+ Log Trip</button>
+          <span class="mileage-deduction-hint" id="mileageTotal">Total mileage deduction: $0.00</span>
+        </div>
+      </div>
+      <div class="entries" id="mileageList">
+        <div class="empty-state">No trips logged yet</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Tax Savings Tracker -->
   <div class="set-aside-section">
     <div class="section">
       <div class="section-header">
-        <h2>💰 Tax Savings Tracker</h2>
+        <h2>Tax Savings Tracker</h2>
       </div>
       <div class="set-aside-body">
         <div class="set-aside-row">
@@ -148,9 +200,31 @@
   <div style="margin-top:24px;">
     <div class="section">
       <div class="section-header">
-        <h2>📅 2026 Quarterly Tax Deadlines</h2>
+        <h2 id="quarterlyTitle">Quarterly Tax Deadlines</h2>
       </div>
       <div class="quarterly-grid" id="quarterlyGrid"></div>
+    </div>
+  </div>
+
+  <!-- Backup & Restore -->
+  <div class="backup-section">
+    <div class="section">
+      <div class="section-header">
+        <h2>Data Management</h2>
+      </div>
+      <div class="backup-body">
+        <div class="backup-actions">
+          <div class="backup-item">
+            <p class="backup-desc">Download a full backup of all your data as a JSON file.</p>
+            <button class="btn btn-primary" onclick="downloadBackup()">Download Backup</button>
+          </div>
+          <div class="backup-item">
+            <p class="backup-desc">Restore data from a previously downloaded backup file.</p>
+            <button class="btn btn-restore" onclick="document.getElementById('restoreFile').click()">Restore from Backup</button>
+            <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreBackup(this)" />
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

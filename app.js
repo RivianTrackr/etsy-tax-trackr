@@ -1,17 +1,13 @@
 // ── Data ─────────────────────────────────────────────────────────────────
-// Detect base path from injected value or from the current URL
-// (handles reverse proxy subpath like /ashley/ even if env var is missing)
 const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(index\.html)?$/, '');
-const STORAGE_KEY = 'etsyTaxData2026';
-const DEFAULTS = { income: [], expenses: [], federalRate: 12, seRate: 15.3, setAside: 0 };
+const DEFAULTS = { income: [], expenses: [], mileage: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.70 };
 let data = { ...DEFAULTS };
+let selectedYear = new Date().getFullYear();
 
-const quarters = [
-  { label: 'Q1', period: 'Jan – Mar', due: 'Apr 15, 2026', dueDate: new Date('2026-04-15') },
-  { label: 'Q2', period: 'Apr – May', due: 'Jun 15, 2026', dueDate: new Date('2026-06-15') },
-  { label: 'Q3', period: 'Jun – Aug', due: 'Sep 15, 2026', dueDate: new Date('2026-09-15') },
-  { label: 'Q4', period: 'Sep – Dec', due: 'Jan 15, 2027', dueDate: new Date('2027-01-15') },
-];
+// Chart instances
+let monthlyChart = null;
+let categoryChart = null;
+let profitChart = null;
 
 // ── Persistence ───────────────────────────────────────────────────────────
 async function loadData() {
@@ -24,17 +20,20 @@ async function loadData() {
     if (res.ok) {
       data = await res.json();
       migrateData();
+      populateYearSelector();
       render();
       return;
     }
   } catch (e) { /* server unavailable, fall back to localStorage */ }
 
-  const stored = localStorage.getItem(STORAGE_KEY)
+  const stored = localStorage.getItem('etsyTaxData')
+              || localStorage.getItem('etsyTaxData2026')
               || localStorage.getItem('etsyTaxData2025');
   if (stored) {
     data = JSON.parse(stored);
     migrateData();
   }
+  populateYearSelector();
   render();
 }
 
@@ -44,21 +43,49 @@ function migrateData() {
     data.seRate      = 15.3;
     delete data.taxRate;
   }
-  // Ensure all expected fields exist
   data.income      = data.income      || [];
   data.expenses    = data.expenses    || [];
+  data.mileage     = data.mileage     || [];
   data.federalRate = data.federalRate ?? 12;
   data.seRate      = data.seRate      ?? 15.3;
   data.setAside    = data.setAside    ?? 0;
+  data.mileageRate = data.mileageRate ?? 0.70;
 }
 
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  localStorage.setItem('etsyTaxData', JSON.stringify(data));
   fetch(BASE + '/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
-  }).catch(() => { /* server unavailable — localStorage already saved */ });
+  }).catch(() => {});
+}
+
+// ── Year helpers ──────────────────────────────────────────────────────────
+function getYearsFromData() {
+  const years = new Set();
+  const currentYear = new Date().getFullYear();
+  years.add(currentYear);
+  for (const e of data.income)   { if (e.date) years.add(parseInt(e.date.slice(0, 4))); }
+  for (const e of data.expenses) { if (e.date) years.add(parseInt(e.date.slice(0, 4))); }
+  for (const e of data.mileage)  { if (e.date) years.add(parseInt(e.date.slice(0, 4))); }
+  return [...years].filter(y => y > 2000).sort((a, b) => b - a);
+}
+
+function populateYearSelector() {
+  const sel = document.getElementById('yearSelect');
+  const years = getYearsFromData();
+  if (!years.includes(selectedYear)) selectedYear = years[0];
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}</option>`).join('');
+}
+
+function changeYear(y) {
+  selectedYear = parseInt(y);
+  render();
+}
+
+function filterByYear(items) {
+  return items.filter(e => e.date && parseInt(e.date.slice(0, 4)) === selectedYear);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -79,19 +106,35 @@ function fmtDate(d) {
 }
 
 function calcTotals() {
-  const income      = data.income.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-  const expenses    = data.expenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-  const profit      = income - expenses;
-  const totalRate   = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0);
-  const seTax       = profit > 0 ? profit * ((parseFloat(data.seRate) || 0) / 100) : 0;
-  const federalTax  = profit > 0 ? profit * ((parseFloat(data.federalRate) || 0) / 100) : 0;
-  const tax         = profit > 0 ? profit * (totalRate / 100) : 0;
-  return { income, expenses, profit, tax, seTax, federalTax, totalRate };
+  const yearIncome   = filterByYear(data.income);
+  const yearExpenses = filterByYear(data.expenses);
+  const yearMileage  = filterByYear(data.mileage);
+
+  const income         = yearIncome.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+  const expenses       = yearExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+  const mileageDeduct  = yearMileage.reduce((s, e) => s + ((parseFloat(e.miles) || 0) * (parseFloat(e.rate) || 0)), 0);
+  const totalDeductions = expenses + mileageDeduct;
+  const profit         = income - totalDeductions;
+  const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0);
+  const seTax          = profit > 0 ? profit * ((parseFloat(data.seRate) || 0) / 100) : 0;
+  const federalTax     = profit > 0 ? profit * ((parseFloat(data.federalRate) || 0) / 100) : 0;
+  const tax            = profit > 0 ? profit * (totalRate / 100) : 0;
+  return { income, expenses: totalDeductions, profit, tax, seTax, federalTax, totalRate, mileageDeduct };
+}
+
+// ── Quarters (dynamic year) ──────────────────────────────────────────────
+function getQuarters(year) {
+  return [
+    { label: 'Q1', period: 'Jan – Mar', due: `Apr 15, ${year}`,     dueDate: new Date(`${year}-04-15`) },
+    { label: 'Q2', period: 'Apr – May', due: `Jun 15, ${year}`,     dueDate: new Date(`${year}-06-15`) },
+    { label: 'Q3', period: 'Jun – Aug', due: `Sep 15, ${year}`,     dueDate: new Date(`${year}-09-15`) },
+    { label: 'Q4', period: 'Sep – Dec', due: `Jan 15, ${year + 1}`, dueDate: new Date(`${year + 1}-01-15`) },
+  ];
 }
 
 // ── Render ────────────────────────────────────────────────────────────────
 function render() {
-  const { income, expenses, profit, tax, seTax, federalTax, totalRate } = calcTotals();
+  const { income, expenses, profit, tax, seTax, federalTax, totalRate, mileageDeduct } = calcTotals();
 
   document.getElementById('totalIncome').textContent   = fmt(income);
   document.getElementById('totalExpenses').textContent = fmt(expenses);
@@ -112,10 +155,16 @@ function render() {
   updateSliderBg('federalRate', data.federalRate, 0, 37);
   updateSliderBg('seRate',      data.seRate,      0, 20);
 
-  renderList('incomeList',  data.income,   'income');
-  renderList('expenseList', data.expenses, 'expense');
+  // Mileage info
+  document.getElementById('mileageRateBadge').textContent = `IRS rate: $${parseFloat(data.mileageRate).toFixed(2)}/mi`;
+  document.getElementById('mileageTotal').textContent = `Total mileage deduction: ${fmt(mileageDeduct)}`;
+
+  renderList('incomeList',  filterByYear(data.income),   'income');
+  renderList('expenseList', filterByYear(data.expenses), 'expense');
+  renderMileageList();
   renderQuarters(tax);
   renderSetAside(tax);
+  renderCharts();
 }
 
 function updateSliderBg(id, val, min, max) {
@@ -131,21 +180,47 @@ function renderList(id, items, type) {
     return;
   }
   el.innerHTML = [...items].reverse().map((e, ri) => {
-    const realIdx = items.length - 1 - ri;
+    // Find the real index in the full (unfiltered) data array
+    const fullArr = type === 'income' ? data.income : data.expenses;
+    const realIdx = fullArr.indexOf(items[items.length - 1 - ri]);
     return `<div class="entry-item">
       <span class="entry-date">${esc(fmtDate(e.date))}</span>
       <span class="entry-desc">${esc(e.desc || '—')}</span>
       ${e.cat ? `<span class="entry-tag">${esc(e.cat)}</span>` : ''}
       <span class="entry-amount ${type}">${fmt(e.amount)}</span>
-      <button class="entry-del" onclick="deleteEntry('${type}',${realIdx})">×</button>
+      <button class="entry-del" onclick="deleteEntry('${type}',${realIdx})">&#215;</button>
+    </div>`;
+  }).join('');
+}
+
+function renderMileageList() {
+  const el = document.getElementById('mileageList');
+  const items = filterByYear(data.mileage);
+  if (!items.length) {
+    el.innerHTML = '<div class="empty-state">No trips logged yet</div>';
+    return;
+  }
+  el.innerHTML = [...items].reverse().map((e, ri) => {
+    const realIdx = data.mileage.indexOf(items[items.length - 1 - ri]);
+    const deduction = (parseFloat(e.miles) || 0) * (parseFloat(e.rate) || 0);
+    return `<div class="entry-item">
+      <span class="entry-date">${esc(fmtDate(e.date))}</span>
+      <span class="entry-desc">${esc(e.desc || '—')}</span>
+      <span class="entry-tag">${parseFloat(e.miles).toFixed(1)} mi</span>
+      <span class="entry-amount expense">${fmt(deduction)}</span>
+      <button class="entry-del" onclick="deleteEntry('mileage',${realIdx})">&#215;</button>
     </div>`;
   }).join('');
 }
 
 function renderQuarters(totalTax) {
+  const quarters = getQuarters(selectedYear);
   const now   = new Date();
   const perQ  = totalTax / 4;
   const nextQ = quarters.find(q => q.dueDate >= now);
+
+  document.getElementById('quarterlyTitle').textContent = `${selectedYear} Quarterly Tax Deadlines`;
+
   document.getElementById('quarterlyGrid').innerHTML = quarters.map(q => {
     const isPast    = q.dueDate < now;
     const isCurrent = q === nextQ;
@@ -162,7 +237,6 @@ function renderQuarters(totalTax) {
 function renderSetAside(tax) {
   const set   = parseFloat(data.setAside || 0);
   const input = document.getElementById('setAsideInput');
-  // Only update the input if it's not currently focused (prevents cursor jumps)
   if (document.activeElement !== input) {
     input.value = set > 0 ? set : '';
   }
@@ -174,6 +248,148 @@ function renderSetAside(tax) {
   document.getElementById('progressRight').textContent = `${fmt(tax)} needed`;
 }
 
+// ── Charts ───────────────────────────────────────────────────────────────
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function getMonthlyData() {
+  const incomeByMonth  = new Array(12).fill(0);
+  const expenseByMonth = new Array(12).fill(0);
+  const mileageByMonth = new Array(12).fill(0);
+
+  for (const e of filterByYear(data.income)) {
+    if (e.date) {
+      const m = parseInt(e.date.slice(5, 7)) - 1;
+      incomeByMonth[m] += parseFloat(e.amount) || 0;
+    }
+  }
+  for (const e of filterByYear(data.expenses)) {
+    if (e.date) {
+      const m = parseInt(e.date.slice(5, 7)) - 1;
+      expenseByMonth[m] += parseFloat(e.amount) || 0;
+    }
+  }
+  for (const e of filterByYear(data.mileage)) {
+    if (e.date) {
+      const m = parseInt(e.date.slice(5, 7)) - 1;
+      mileageByMonth[m] += (parseFloat(e.miles) || 0) * (parseFloat(e.rate) || 0);
+    }
+  }
+
+  return { incomeByMonth, expenseByMonth, mileageByMonth };
+}
+
+function getCategoryData() {
+  const cats = {};
+  for (const e of filterByYear(data.expenses)) {
+    const cat = e.cat || 'Other';
+    cats[cat] = (cats[cat] || 0) + (parseFloat(e.amount) || 0);
+  }
+  // Add mileage as a category
+  const mileageTotal = filterByYear(data.mileage).reduce((s, e) => s + ((parseFloat(e.miles) || 0) * (parseFloat(e.rate) || 0)), 0);
+  if (mileageTotal > 0) cats['Mileage'] = mileageTotal;
+  return cats;
+}
+
+const CHART_COLORS = [
+  '#c4623a', '#7a9e7e', '#b8882e', '#5c4a3a', '#e8856a',
+  '#4a8a50', '#d4a240', '#9a8878', '#6b8f9e', '#c49a6c'
+];
+
+function renderCharts() {
+  if (typeof Chart === 'undefined') return;
+
+  const { incomeByMonth, expenseByMonth, mileageByMonth } = getMonthlyData();
+  const totalExpByMonth = expenseByMonth.map((v, i) => v + mileageByMonth[i]);
+  const profitByMonth   = incomeByMonth.map((v, i) => v - totalExpByMonth[i]);
+  const catData = getCategoryData();
+
+  const fontFamily = "'DM Sans', sans-serif";
+  const gridColor  = '#e0d5c8';
+  const textColor  = '#5c4a3a';
+
+  // Monthly Income vs Expenses bar chart
+  if (monthlyChart) monthlyChart.destroy();
+  monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: MONTH_LABELS,
+      datasets: [
+        { label: 'Income',     data: incomeByMonth,   backgroundColor: '#7a9e7e', borderRadius: 4 },
+        { label: 'Deductions', data: totalExpByMonth,  backgroundColor: '#c4623a', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Monthly Income vs Deductions', font: { family: fontFamily, size: 14, weight: '600' }, color: textColor },
+        legend: { labels: { font: { family: fontFamily, size: 11 }, color: textColor } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: fontFamily, size: 11 }, color: textColor } },
+        y: { grid: { color: gridColor }, ticks: { font: { family: fontFamily, size: 11 }, color: textColor, callback: v => '$' + v.toLocaleString() } },
+      }
+    }
+  });
+
+  // Expense category doughnut
+  const catLabels = Object.keys(catData);
+  const catValues = Object.values(catData);
+
+  if (categoryChart) categoryChart.destroy();
+  categoryChart = new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: catLabels,
+      datasets: [{
+        data: catValues,
+        backgroundColor: CHART_COLORS.slice(0, catLabels.length),
+        borderWidth: 2,
+        borderColor: '#fffdf9',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Deductions by Category', font: { family: fontFamily, size: 14, weight: '600' }, color: textColor },
+        legend: { position: 'right', labels: { font: { family: fontFamily, size: 11 }, color: textColor, padding: 12 } },
+      }
+    }
+  });
+
+  // Monthly profit trend line
+  if (profitChart) profitChart.destroy();
+  profitChart = new Chart(document.getElementById('profitChart'), {
+    type: 'line',
+    data: {
+      labels: MONTH_LABELS,
+      datasets: [{
+        label: 'Net Profit',
+        data: profitByMonth,
+        borderColor: '#b8882e',
+        backgroundColor: 'rgba(184, 136, 46, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: '#b8882e',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Monthly Profit Trend', font: { family: fontFamily, size: 14, weight: '600' }, color: textColor },
+        legend: { labels: { font: { family: fontFamily, size: 11 }, color: textColor } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: fontFamily, size: 11 }, color: textColor } },
+        y: { grid: { color: gridColor }, ticks: { font: { family: fontFamily, size: 11 }, color: textColor, callback: v => '$' + v.toLocaleString() } },
+      }
+    }
+  });
+}
+
 // ── Actions ───────────────────────────────────────────────────────────────
 function addIncome() {
   const date   = document.getElementById('incomeDate').value;
@@ -181,7 +397,7 @@ function addIncome() {
   const amount = parseFloat(document.getElementById('incomeAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
   data.income.push({ date, desc, amount });
-  save(); render();
+  save(); populateYearSelector(); render();
   document.getElementById('incomeDesc').value = '';
   document.getElementById('incomeAmt').value  = '';
 }
@@ -193,21 +409,71 @@ function addExpense() {
   const amount = parseFloat(document.getElementById('expenseAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
   data.expenses.push({ date, cat, desc, amount });
-  save(); render();
+  save(); populateYearSelector(); render();
   document.getElementById('expenseDesc').value = '';
   document.getElementById('expenseAmt').value  = '';
 }
 
+function addMileage() {
+  const date  = document.getElementById('mileageDate').value;
+  const desc  = document.getElementById('mileageDesc').value.trim() || 'Business trip';
+  const miles = parseFloat(document.getElementById('mileageMiles').value);
+  if (!miles || miles <= 0) { alert('Please enter valid miles.'); return; }
+  data.mileage.push({ date, desc, miles, rate: data.mileageRate });
+  save(); populateYearSelector(); render();
+  document.getElementById('mileageDesc').value  = '';
+  document.getElementById('mileageMiles').value = '';
+}
+
 function deleteEntry(type, idx) {
   if (!confirm('Remove this entry?')) return;
-  if (type === 'income') data.income.splice(idx, 1);
+  if (type === 'income')       data.income.splice(idx, 1);
   else if (type === 'expense') data.expenses.splice(idx, 1);
+  else if (type === 'mileage') data.mileage.splice(idx, 1);
   save(); render();
 }
 
 function updateFederalRate(val) { data.federalRate = parseFloat(val) || 0; save(); render(); }
 function updateSeRate(val)      { data.seRate      = parseFloat(val) || 0; save(); render(); }
 function updateSetAside(val)    { data.setAside    = parseFloat(val) || 0; save(); render(); }
+
+// ── Backup & Restore ─────────────────────────────────────────────────────
+function downloadBackup() {
+  window.location.href = BASE + '/api/backup';
+}
+
+async function restoreBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  if (!confirm('This will replace ALL your current data with the backup. Are you sure?')) {
+    input.value = '';
+    return;
+  }
+
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+
+    const res = await fetch(BASE + '/api/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: text,
+    });
+
+    if (res.ok) {
+      alert('Backup restored successfully! Reloading...');
+      window.location.reload();
+    } else {
+      const err = await res.json();
+      alert('Restore failed: ' + (err.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Invalid backup file.');
+  }
+
+  input.value = '';
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────
 async function logout() {
@@ -219,5 +485,6 @@ async function logout() {
 const today = new Date().toISOString().split('T')[0];
 document.getElementById('incomeDate').value  = today;
 document.getElementById('expenseDate').value = today;
+document.getElementById('mileageDate').value = today;
 
 loadData();

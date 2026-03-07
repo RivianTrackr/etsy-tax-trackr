@@ -13,7 +13,7 @@ const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/+$/, ''); // e.g. '/a
 const DB_PATH  = path.join(__dirname, 'tax_data.db');
 const OLD_JSON = path.join(__dirname, 'data.json');
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false }));
 
 // ── Database setup ──────────────────────────────────────────────────────
@@ -40,6 +40,14 @@ db.exec(`
     cat    TEXT,
     desc   TEXT,
     amount REAL NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS mileage (
+    id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    date  TEXT,
+    desc  TEXT,
+    miles REAL NOT NULL,
+    rate  REAL NOT NULL DEFAULT 0.70
   );
 
   CREATE TABLE IF NOT EXISTS users (
@@ -205,11 +213,14 @@ migrateFromJson();
 const stmts = {
   allIncome:     db.prepare('SELECT id, date, desc, amount FROM income ORDER BY id'),
   allExpenses:   db.prepare('SELECT id, date, cat, desc, amount FROM expenses ORDER BY id'),
+  allMileage:    db.prepare('SELECT id, date, desc, miles, rate FROM mileage ORDER BY id'),
   allSettings:   db.prepare('SELECT key, value FROM settings'),
   insertIncome:  db.prepare('INSERT INTO income (date, desc, amount) VALUES (?, ?, ?)'),
   insertExpense: db.prepare('INSERT INTO expenses (date, cat, desc, amount) VALUES (?, ?, ?, ?)'),
+  insertMileage: db.prepare('INSERT INTO mileage (date, desc, miles, rate) VALUES (?, ?, ?, ?)'),
   deleteIncome:  db.prepare('DELETE FROM income WHERE id = ?'),
   deleteExpense: db.prepare('DELETE FROM expenses WHERE id = ?'),
+  deleteMileage: db.prepare('DELETE FROM mileage WHERE id = ?'),
   upsertSetting: db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)'),
 };
 
@@ -217,14 +228,17 @@ const stmts = {
 app.get('/api/data', requireAuth, (req, res) => {
   const income   = stmts.allIncome.all();
   const expenses = stmts.allExpenses.all();
+  const mileage  = stmts.allMileage.all();
   const settings = Object.fromEntries(stmts.allSettings.all().map(r => [r.key, r.value]));
 
   res.json({
     income,
     expenses,
+    mileage,
     federalRate: parseFloat(settings.federalRate ?? 12),
     seRate:      parseFloat(settings.seRate ?? 15.3),
     setAside:    parseFloat(settings.setAside ?? 0),
+    mileageRate: parseFloat(settings.mileageRate ?? 0.70),
   });
 });
 
@@ -245,9 +259,15 @@ app.post('/api/data', requireAuth, (req, res) => {
       stmts.insertExpense.run(e.date || null, e.cat || null, e.desc || null, parseFloat(e.amount) || 0);
     }
 
+    db.exec('DELETE FROM mileage');
+    for (const e of (body.mileage || [])) {
+      stmts.insertMileage.run(e.date || null, e.desc || null, parseFloat(e.miles) || 0, parseFloat(e.rate) || 0.70);
+    }
+
     stmts.upsertSetting.run('federalRate', String(body.federalRate ?? 12));
     stmts.upsertSetting.run('seRate',      String(body.seRate ?? 15.3));
     stmts.upsertSetting.run('setAside',    String(body.setAside ?? 0));
+    stmts.upsertSetting.run('mileageRate', String(body.mileageRate ?? 0.70));
   });
 
   try {
@@ -255,6 +275,65 @@ app.post('/api/data', requireAuth, (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save data' });
+  }
+});
+
+// ── Backup & Restore ────────────────────────────────────────────────────
+app.get('/api/backup', requireAuth, (req, res) => {
+  const income   = stmts.allIncome.all();
+  const expenses = stmts.allExpenses.all();
+  const mileage  = stmts.allMileage.all();
+  const settings = Object.fromEntries(stmts.allSettings.all().map(r => [r.key, r.value]));
+
+  const backup = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    income,
+    expenses,
+    mileage,
+    settings,
+  };
+
+  res.setHeader('Content-Disposition', `attachment; filename="etsy-tax-backup-${new Date().toISOString().split('T')[0]}.json"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(backup, null, 2));
+});
+
+app.post('/api/restore', requireAuth, (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== 'object' || !body.version) {
+    return res.status(400).json({ error: 'Invalid backup file format' });
+  }
+
+  const restore = db.transaction(() => {
+    db.exec('DELETE FROM income');
+    for (const e of (body.income || [])) {
+      stmts.insertIncome.run(e.date || null, e.desc || null, parseFloat(e.amount) || 0);
+    }
+
+    db.exec('DELETE FROM expenses');
+    for (const e of (body.expenses || [])) {
+      stmts.insertExpense.run(e.date || null, e.cat || null, e.desc || null, parseFloat(e.amount) || 0);
+    }
+
+    db.exec('DELETE FROM mileage');
+    for (const e of (body.mileage || [])) {
+      stmts.insertMileage.run(e.date || null, e.desc || null, parseFloat(e.miles) || 0, parseFloat(e.rate) || 0.70);
+    }
+
+    if (body.settings) {
+      for (const [key, value] of Object.entries(body.settings)) {
+        stmts.upsertSetting.run(key, String(value));
+      }
+    }
+  });
+
+  try {
+    restore();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Restore error:', err);
+    res.status(500).json({ error: 'Failed to restore backup' });
   }
 });
 
