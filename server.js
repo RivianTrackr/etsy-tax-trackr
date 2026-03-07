@@ -8,6 +8,7 @@ const fs       = require('fs');
 const path     = require('path');
 
 const app      = express();
+const router   = express.Router();
 const PORT     = process.env.PORT || 3000;
 const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/+$/, ''); // e.g. '/ashley'
 const DB_PATH  = path.join(__dirname, 'tax_data.db');
@@ -84,19 +85,19 @@ function serveHtmlWithBasePath(filePath, res) {
 }
 
 // Serve login.html and its assets without auth
-app.get('/login.html', (req, res) => {
+router.get('/login.html', (req, res) => {
   serveHtmlWithBasePath(path.join(__dirname, 'login.html'), res);
 });
 
 // Protect index.html — redirect to login if not authenticated
-app.get('/', (req, res) => {
+router.get('/', (req, res) => {
   if (!req.session || !req.session.userId) {
     return res.redirect(BASE_PATH + '/login.html');
   }
   serveHtmlWithBasePath(path.join(__dirname, 'index.html'), res);
 });
 
-app.get('/index.html', (req, res) => {
+router.get('/index.html', (req, res) => {
   if (!req.session || !req.session.userId) {
     return res.redirect(BASE_PATH + '/login.html');
   }
@@ -104,12 +105,12 @@ app.get('/index.html', (req, res) => {
 });
 
 // Static files (CSS, JS, fonts) — served to everyone
-app.use(express.static(__dirname));
+router.use(express.static(__dirname));
 
 // ── Auth API routes ─────────────────────────────────────────────────────
 
 // Check if setup is needed
-app.get('/api/auth/status', (req, res) => {
+router.get('/api/auth/status', (req, res) => {
   res.json({
     needsSetup: !hasUsers(),
     loggedIn: !!(req.session && req.session.userId),
@@ -117,7 +118,7 @@ app.get('/api/auth/status', (req, res) => {
 });
 
 // First-run setup — create initial user
-app.post('/api/auth/setup', (req, res) => {
+router.post('/api/auth/setup', (req, res) => {
   if (hasUsers()) {
     return res.status(403).json({ error: 'Setup already completed' });
   }
@@ -138,7 +139,7 @@ app.post('/api/auth/setup', (req, res) => {
 });
 
 // Login
-app.post('/api/auth/login', (req, res) => {
+router.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
@@ -154,7 +155,7 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // Logout
-app.post('/api/auth/logout', (req, res) => {
+router.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => {
     res.clearCookie('connect.sid');
     res.json({ ok: true });
@@ -210,7 +211,7 @@ const stmts = {
 };
 
 // ── Protected API routes ────────────────────────────────────────────────
-app.get('/api/data', requireAuth, (req, res) => {
+router.get('/api/data', requireAuth, (req, res) => {
   const income   = stmts.allIncome.all();
   const expenses = stmts.allExpenses.all();
   const settings = Object.fromEntries(stmts.allSettings.all().map(r => [r.key, r.value]));
@@ -224,7 +225,7 @@ app.get('/api/data', requireAuth, (req, res) => {
   });
 });
 
-app.post('/api/data', requireAuth, (req, res) => {
+router.post('/api/data', requireAuth, (req, res) => {
   const body = req.body;
   if (!body || typeof body !== 'object') {
     return res.status(400).json({ error: 'Invalid data' });
@@ -253,6 +254,14 @@ app.post('/api/data', requireAuth, (req, res) => {
     res.status(500).json({ error: 'Failed to save data' });
   }
 });
+
+// ── Mount router at BASE_PATH ────────────────────────────────────────────
+app.use(BASE_PATH || '/', router);
+
+// Redirect bare root to BASE_PATH when BASE_PATH is set
+if (BASE_PATH) {
+  app.get('/', (req, res) => res.redirect(BASE_PATH));
+}
 
 // ── Graceful shutdown ───────────────────────────────────────────────────
 process.on('SIGINT',  () => { db.close(); process.exit(0); });
