@@ -1,5 +1,7 @@
 // ── Data ─────────────────────────────────────────────────────────────────
-const BASE = window.__BASE_PATH__ || '';
+// Detect base path from injected value or from the current URL
+// (handles reverse proxy subpath like /ashley/ even if env var is missing)
+const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(index\.html)?$/, '');
 const STORAGE_KEY = 'etsyTaxData2026';
 const DEFAULTS = { income: [], expenses: [], federalRate: 12, seRate: 15.3, setAside: 0 };
 let data = { ...DEFAULTS };

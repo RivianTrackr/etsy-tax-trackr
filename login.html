@@ -122,7 +122,7 @@
 </div>
 
 <script>
-  const BASE = window.__BASE_PATH__ || '';
+  const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(login\.html)?$/, '');
   let isSetup = false;
 
   async function init() {
