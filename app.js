@@ -1,13 +1,7 @@
 // ── Data ─────────────────────────────────────────────────────────────────
-const DEFAULTS = '{"income":[],"expenses":[],"federalRate":12,"seRate":15.3,"setAside":0}';
-let data = JSON.parse(localStorage.getItem('etsyTaxData2025') || DEFAULTS);
-
-// Migrate old single-rate data saved before this update
-if (data.taxRate !== undefined && data.federalRate === undefined) {
-  data.federalRate = data.taxRate;
-  data.seRate      = 15.3;
-  delete data.taxRate;
-}
+const STORAGE_KEY = 'etsyTaxData2026';
+const DEFAULTS = { income: [], expenses: [], federalRate: 12, seRate: 15.3, setAside: 0 };
+let data = { ...DEFAULTS };
 
 const quarters = [
   { label: 'Q1', period: 'Jan – Mar', due: 'Apr 15, 2026', dueDate: new Date('2026-04-15') },
@@ -17,11 +11,56 @@ const quarters = [
 ];
 
 // ── Persistence ───────────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch('/api/data');
+    if (res.ok) {
+      data = await res.json();
+      migrateData();
+      render();
+      return;
+    }
+  } catch (e) { /* server unavailable, fall back to localStorage */ }
+
+  const stored = localStorage.getItem(STORAGE_KEY)
+              || localStorage.getItem('etsyTaxData2025');
+  if (stored) {
+    data = JSON.parse(stored);
+    migrateData();
+  }
+  render();
+}
+
+function migrateData() {
+  if (data.taxRate !== undefined && data.federalRate === undefined) {
+    data.federalRate = data.taxRate;
+    data.seRate      = 15.3;
+    delete data.taxRate;
+  }
+  // Ensure all expected fields exist
+  data.income      = data.income      || [];
+  data.expenses    = data.expenses    || [];
+  data.federalRate = data.federalRate ?? 12;
+  data.seRate      = data.seRate      ?? 15.3;
+  data.setAside    = data.setAside    ?? 0;
+}
+
 function save() {
-  localStorage.setItem('etsyTaxData2025', JSON.stringify(data));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  fetch('/api/data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).catch(() => { /* server unavailable — localStorage already saved */ });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
 function fmt(n) {
   return '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -33,8 +72,8 @@ function fmtDate(d) {
 }
 
 function calcTotals() {
-  const income      = data.income.reduce((s, e) => s + parseFloat(e.amount), 0);
-  const expenses    = data.expenses.reduce((s, e) => s + parseFloat(e.amount), 0);
+  const income      = data.income.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+  const expenses    = data.expenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
   const profit      = income - expenses;
   const totalRate   = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0);
   const seTax       = profit > 0 ? profit * ((parseFloat(data.seRate) || 0) / 100) : 0;
@@ -87,9 +126,9 @@ function renderList(id, items, type) {
   el.innerHTML = [...items].reverse().map((e, ri) => {
     const realIdx = items.length - 1 - ri;
     return `<div class="entry-item">
-      <span class="entry-date">${fmtDate(e.date)}</span>
-      <span class="entry-desc">${e.desc || '—'}</span>
-      ${e.cat ? `<span class="entry-tag">${e.cat}</span>` : ''}
+      <span class="entry-date">${esc(fmtDate(e.date))}</span>
+      <span class="entry-desc">${esc(e.desc || '—')}</span>
+      ${e.cat ? `<span class="entry-tag">${esc(e.cat)}</span>` : ''}
       <span class="entry-amount ${type}">${fmt(e.amount)}</span>
       <button class="entry-del" onclick="deleteEntry('${type}',${realIdx})">×</button>
     </div>`;
@@ -114,12 +153,16 @@ function renderQuarters(totalTax) {
 }
 
 function renderSetAside(tax) {
-  const set  = parseFloat(data.setAside || 0);
-  document.getElementById('setAsideInput').value = set > 0 ? set : '';
+  const set   = parseFloat(data.setAside || 0);
+  const input = document.getElementById('setAsideInput');
+  // Only update the input if it's not currently focused (prevents cursor jumps)
+  if (document.activeElement !== input) {
+    input.value = set > 0 ? set : '';
+  }
   const pct  = tax > 0 ? Math.min((set / tax) * 100, 100) : 0;
   const fill = document.getElementById('progressFill');
   fill.style.width = pct + '%';
-  fill.className   = 'progress-fill' + (pct >= 100 ? ' over' : pct >= 60 ? '' : ' warn');
+  fill.className   = 'progress-fill' + (pct >= 100 ? ' complete' : pct >= 60 ? '' : ' warn');
   document.getElementById('progressLeft').textContent  = `${fmt(set)} set aside (${Math.round(pct)}%)`;
   document.getElementById('progressRight').textContent = `${fmt(tax)} needed`;
 }
@@ -151,7 +194,7 @@ function addExpense() {
 function deleteEntry(type, idx) {
   if (!confirm('Remove this entry?')) return;
   if (type === 'income') data.income.splice(idx, 1);
-  else data.expenses.splice(idx, 1);
+  else if (type === 'expense') data.expenses.splice(idx, 1);
   save(); render();
 }
 
@@ -164,4 +207,4 @@ const today = new Date().toISOString().split('T')[0];
 document.getElementById('incomeDate').value  = today;
 document.getElementById('expenseDate').value = today;
 
-render();
+loadData();

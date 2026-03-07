@@ -1,0 +1,12 @@
+{
+  "name": "etsy-tax-trackr",
+  "version": "1.0.0",
+  "description": "Track Etsy income, deductions, and estimated quarterly taxes",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
