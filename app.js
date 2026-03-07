@@ -10,10 +10,10 @@ if (data.taxRate !== undefined && data.federalRate === undefined) {
 }
 
 const quarters = [
-  { label: 'Q1', period: 'Jan – Mar', due: 'Apr 15, 2025', dueDate: new Date('2025-04-15') },
-  { label: 'Q2', period: 'Apr – May', due: 'Jun 16, 2025', dueDate: new Date('2025-06-16') },
-  { label: 'Q3', period: 'Jun – Aug', due: 'Sep 15, 2025', dueDate: new Date('2025-09-15') },
-  { label: 'Q4', period: 'Sep – Dec', due: 'Jan 15, 2026', dueDate: new Date('2026-01-15') },
+  { label: 'Q1', period: 'Jan – Mar', due: 'Apr 15, 2026', dueDate: new Date('2026-04-15') },
+  { label: 'Q2', period: 'Apr – May', due: 'Jun 15, 2026', dueDate: new Date('2026-06-15') },
+  { label: 'Q3', period: 'Jun – Aug', due: 'Sep 15, 2026', dueDate: new Date('2026-09-15') },
+  { label: 'Q4', period: 'Sep – Dec', due: 'Jan 15, 2027', dueDate: new Date('2027-01-15') },
 ];
 
 // ── Persistence ───────────────────────────────────────────────────────────
