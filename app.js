@@ -118,6 +118,13 @@ function fmtDate(d) {
   return `${p[1]}/${p[2]}/${p[0].slice(2)}`;
 }
 
+// 2026 IRS thresholds
+const SS_WAGE_CAP = 184500;       // Social Security wage base limit
+const SS_RATE     = 0.124;        // 12.4% Social Security
+const MEDICARE_RATE = 0.029;      // 2.9% Medicare
+const ADDL_MEDICARE_THRESHOLD = 200000; // Additional Medicare Tax threshold (single)
+const ADDL_MEDICARE_RATE = 0.009; // 0.9% Additional Medicare Tax
+
 function calcTotals() {
   const yearIncome   = filterByYear(data.income);
   const yearExpenses = filterByYear(data.expenses);
@@ -128,16 +135,36 @@ function calcTotals() {
   const mileageDeduct  = yearMileage.reduce((s, e) => s + ((parseFloat(e.miles) || 0) * (parseFloat(e.rate) || 0)), 0);
   const totalDeductions = expenses + mileageDeduct;
   const profit         = income - totalDeductions;
+
   // IRS only taxes 92.35% of net profit for self-employment tax
   const seTaxableIncome = profit > 0 ? profit * 0.9235 : 0;
-  const seTax          = seTaxableIncome * ((parseFloat(data.seRate) || 0) / 100);
+
+  // Social Security tax: 12.4% up to wage cap, then $0
+  const ssTax = seTaxableIncome > 0
+    ? Math.min(seTaxableIncome, SS_WAGE_CAP) * SS_RATE
+    : 0;
+
+  // Medicare tax: 2.9% on all SE income + 0.9% Additional Medicare above $200k
+  const medicareTax = seTaxableIncome > 0
+    ? seTaxableIncome * MEDICARE_RATE
+    : 0;
+  const addlMedicareTax = seTaxableIncome > ADDL_MEDICARE_THRESHOLD
+    ? (seTaxableIncome - ADDL_MEDICARE_THRESHOLD) * ADDL_MEDICARE_RATE
+    : 0;
+
+  const seTax = ssTax + medicareTax + addlMedicareTax;
+
   // Deduct employer-equivalent half of SE tax from income before federal tax
   const seDeduction    = seTax / 2;
-  const federalTaxable = profit > 0 ? Math.max(profit - seDeduction, 0) : 0;
+
+  // QBI deduction: 20% of qualified business income (net profit minus half SE tax)
+  const qbiDeduction   = profit > 0 ? Math.max(profit - seDeduction, 0) * 0.20 : 0;
+
+  const federalTaxable = profit > 0 ? Math.max(profit - seDeduction - qbiDeduction, 0) : 0;
   const federalTax     = federalTaxable * ((parseFloat(data.federalRate) || 0) / 100);
   const tax            = seTax + federalTax;
   const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0);
-  return { income, expenses: totalDeductions, profit, tax, seTax, federalTax, totalRate, mileageDeduct };
+  return { income, expenses: totalDeductions, profit, tax, seTax, federalTax, totalRate, mileageDeduct, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable };
 }
 
 // ── Quarters (dynamic year) ──────────────────────────────────────────────
@@ -169,13 +196,13 @@ function getQuarters(year) {
 
 // ── Render ────────────────────────────────────────────────────────────────
 function render() {
-  const { income, expenses, profit, tax, seTax, federalTax, totalRate, mileageDeduct } = calcTotals();
+  const { income, expenses, profit, tax, seTax, federalTax, totalRate, mileageDeduct, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable } = calcTotals();
 
   document.getElementById('totalIncome').textContent   = fmt(income);
   document.getElementById('totalExpenses').textContent = fmt(expenses);
   document.getElementById('netProfit').textContent     = fmt(profit);
   document.getElementById('taxOwed').textContent       = fmt(tax);
-  document.getElementById('taxRateLabel').textContent  = `at ${totalRate.toFixed(1)}% total`;
+  document.getElementById('taxRateLabel').textContent  = profit > 0 ? `effective ${((tax / profit) * 100).toFixed(1)}%` : 'at 0%';
 
   // Rate inputs
   document.getElementById('federalRate').value         = data.federalRate;
@@ -185,6 +212,13 @@ function render() {
   document.getElementById('totalRateDisplay').textContent   = `${totalRate.toFixed(1)}%`;
   document.getElementById('seTaxBreakdown').textContent     = fmt(seTax);
   document.getElementById('federalTaxBreakdown').textContent = fmt(federalTax);
+
+  // Detailed SE breakdown
+  document.getElementById('ssTaxDetail').textContent        = fmt(ssTax);
+  document.getElementById('medicareTaxDetail').textContent  = fmt(medicareTax + addlMedicareTax);
+  document.getElementById('qbiDeductionDisplay').textContent = fmt(qbiDeduction);
+  document.getElementById('seDeductionDisplay').textContent  = fmt(seDeduction);
+  document.getElementById('federalTaxableDisplay').textContent = fmt(federalTaxable);
 
   // Slider gradient helpers
   updateSliderBg('federalRate', data.federalRate, 0, 37);
