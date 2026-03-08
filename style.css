@@ -60,7 +60,7 @@ header { position: relative; }
 .year-selector select {
   padding: 6px 10px;
   border: 1.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
   font-family: 'DM Sans', sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -76,7 +76,7 @@ header { position: relative; }
 .btn-logout {
   background: none;
   border: 1.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
   padding: 6px 14px;
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
@@ -91,7 +91,7 @@ header { position: relative; }
 .btn-settings-text {
   padding: 6px 10px;
   border: 1.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
   font-family: 'DM Sans', sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -109,7 +109,7 @@ header { position: relative; }
   gap: 4px;
   padding: 6px 14px;
   border: 1.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
   font-weight: 600;
