@@ -322,6 +322,7 @@ app.post('/api/data', requireAuth, (req, res) => {
 
   try {
     sync();
+    console.log('Data saved successfully');
     // Return saved data with server-assigned IDs
     const income   = stmts.allIncome.all();
     const expenses = stmts.allExpenses.all();
@@ -344,7 +345,8 @@ app.post('/api/data', requireAuth, (req, res) => {
       defaultCategory: settings.defaultCategory ?? 'Supplies',
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save data' });
+    console.error('Save transaction failed:', err);
+    res.status(500).json({ error: 'Failed to save data: ' + err.message });
   }
 });
 

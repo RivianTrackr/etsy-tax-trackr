@@ -65,15 +65,22 @@ async function save() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    if (res.status === 401) {
+      window.location.href = BASE + '/login.html';
+      return;
+    }
     if (res.ok) {
       // POST response includes saved data with server-assigned IDs
       data = await res.json();
       migrateData();
     } else {
-      console.error('Save failed:', res.status, await res.text().catch(() => ''));
+      const errText = await res.text().catch(() => '');
+      console.error('Save failed:', res.status, errText);
+      alert('Save failed (' + res.status + '). Check server logs.');
     }
   } catch (e) {
-    console.warn('Save offline, using localStorage fallback:', e.message);
+    console.error('Save error:', e);
+    alert('Could not reach server. Data saved locally only.');
   }
 }
 
