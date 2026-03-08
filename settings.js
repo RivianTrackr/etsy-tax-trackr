@@ -53,14 +53,27 @@ function migrateData() {
   data.defaultCategory = data.defaultCategory ?? 'Supplies';
 }
 
+let dirty = false;
+function markDirty() {
+  dirty = true;
+  const btn = document.getElementById('saveBtn');
+  if (btn) btn.classList.add('has-changes');
+}
+
 let saveTimeout = null;
 function showSaveStatus(success) {
-  const el = document.getElementById('saveStatus');
-  if (!el) return;
-  el.textContent = success ? 'Saved' : 'Saved locally';
-  el.className = 'save-status ' + (success ? 'save-success' : 'save-warn');
+  const btn = document.getElementById('saveBtn');
+  if (!btn) return;
+  const orig = btn.textContent;
+  btn.textContent = success ? 'Saved!' : 'Saved locally';
+  btn.classList.remove('has-changes');
+  btn.classList.add(success ? 'save-success' : 'save-warn');
+  dirty = false;
   clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(() => { el.className = 'save-status'; }, 2000);
+  saveTimeout = setTimeout(() => {
+    btn.textContent = 'Save Changes';
+    btn.classList.remove('save-success', 'save-warn');
+  }, 2000);
 }
 
 async function save() {
@@ -161,13 +174,13 @@ function updateSliderBg(id, val, min, max) {
 }
 
 // ── Actions ──────────────────────────────────────────────────────────────
-function updateFederalRate(val)   { data.federalRate = parseFloat(val) || 0; render(); save(); }
-function updateSeRate(val)        { data.seRate      = parseFloat(val) || 0; render(); save(); }
-function updateMileageRate(val)   { data.mileageRate = parseFloat(val) || 0.725; render(); save(); }
-function updateStateRate(val)     { data.stateRate   = parseFloat(val) || 0; render(); save(); }
-function updateBusinessName(val)  { data.businessName = val.trim(); save(); }
-function updateFilingStatus(val)  { data.filingStatus = val; save(); }
-function updateDefaultCategory(val) { data.defaultCategory = val; save(); }
+function updateFederalRate(val)   { data.federalRate = parseFloat(val) || 0; render(); markDirty(); }
+function updateSeRate(val)        { data.seRate      = parseFloat(val) || 0; render(); markDirty(); }
+function updateMileageRate(val)   { data.mileageRate = parseFloat(val) || 0.725; render(); markDirty(); }
+function updateStateRate(val)     { data.stateRate   = parseFloat(val) || 0; render(); markDirty(); }
+function updateBusinessName(val)  { data.businessName = val.trim(); markDirty(); }
+function updateFilingStatus(val)  { data.filingStatus = val; markDirty(); }
+function updateDefaultCategory(val) { data.defaultCategory = val; markDirty(); }
 
 // ── Backup & Restore ─────────────────────────────────────────────────────
 function downloadBackup() {

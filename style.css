@@ -162,22 +162,36 @@ header { position: relative; }
 }
 .breakdown-link:hover { text-decoration: underline; }
 
-/* Save status indicator */
-.save-status {
+/* Save button (settings page) */
+.btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  font-family: 'DM Sans', sans-serif;
   font-size: 12px;
   font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 9px;
-  opacity: 0;
-  transition: opacity 0.3s;
+  color: var(--muted);
+  background: var(--warm-white);
+  cursor: pointer;
+  transition: all 0.2s;
 }
-.save-status.save-success {
-  opacity: 1;
+.btn-save:hover { border-color: var(--terracotta); color: var(--terracotta); }
+.btn-save.has-changes {
+  border-color: var(--terracotta);
+  color: var(--warm-white);
+  background: var(--terracotta);
+}
+.btn-save.has-changes:hover { background: var(--terracotta-light); border-color: var(--terracotta-light); }
+.btn-save.save-success {
+  border-color: var(--sage);
   color: var(--sage);
   background: var(--sage-pale);
 }
-.save-status.save-warn {
-  opacity: 1;
+.btn-save.save-warn {
+  border-color: var(--gold);
   color: var(--gold);
   background: var(--gold-pale);
 }
