@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings &mdash; Etsy Tax Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="eyebrow">&#10022; Self-Employment Tax Tool</div>
+    <h1>Settings</h1>
+    <p>Configure your tax rates, mileage rate, and manage your data</p>
+    <div class="header-controls">
+      <a href="./" class="btn-back">&larr; Back to Dashboard</a>
+    </div>
+  </header>
+
+  <!-- Tax Rate Controls -->
+  <div class="settings-group">
+    <div class="section">
+      <div class="section-header">
+        <h2>Tax Rates</h2>
+        <span class="badge expense">Adjust your withholding</span>
+      </div>
+      <div class="tax-rate-panel-inner">
+        <div class="tax-rate-row">
+          <div class="rate-info">
+            <label for="federalRate">Federal Income Tax Rate</label>
+            <span class="rate-hint">Your marginal bracket &mdash; 10%, 12%, 22%, 24%, 32%...</span>
+          </div>
+          <input type="range" id="federalRate" min="0" max="37" value="12" step="1" oninput="updateFederalRate(this.value)">
+          <span class="rate-val" id="federalRateDisplay">12.0%</span>
+        </div>
+        <div class="tax-rate-row">
+          <div class="rate-info">
+            <label for="seRate">Self-Employment Tax Rate</label>
+            <span class="rate-hint">15.3% = 12.4% SS (up to $184,500) + 2.9% Medicare. +0.9% Medicare above $200k.</span>
+          </div>
+          <input type="range" id="seRate" min="0" max="20" value="15.3" step="0.1" oninput="updateSeRate(this.value)">
+          <span class="rate-val" id="seRateDisplay">15.3%</span>
+        </div>
+        <div class="tax-rate-row">
+          <div class="rate-info">
+            <label for="mileageRate">IRS Mileage Rate</label>
+            <span class="rate-hint">Standard mileage rate for business driving. 2026 rate is $0.725/mi.</span>
+          </div>
+          <input type="number" id="mileageRate" value="0.725" min="0" max="2" step="0.005" class="settings-input-small" oninput="updateMileageRate(this.value)">
+          <span class="rate-val" id="mileageRateDisplay">$0.725/mi</span>
+        </div>
+        <div class="tax-rate-total">
+          <div class="rate-breakdown">
+            <span>SE Tax: <strong id="seTaxBreakdown">$0.00</strong></span>
+            <span class="rate-detail">Social Security (12.4%): <span id="ssTaxDetail">$0.00</span></span>
+            <span class="rate-detail">Medicare (2.9%+): <span id="medicareTaxDetail">$0.00</span></span>
+            <span class="rate-detail">&frac12; SE deduction: &minus;<span id="seDeductionDisplay">$0.00</span></span>
+          </div>
+          <div class="rate-breakdown">
+            <span>Federal: <strong id="federalTaxBreakdown">$0.00</strong></span>
+            <span class="rate-detail">QBI deduction (20%): &minus;<span id="qbiDeductionDisplay">$0.00</span></span>
+            <span class="rate-detail">Taxable income: <span id="federalTaxableDisplay">$0.00</span></span>
+          </div>
+          <div class="rate-total-label">Combined rate: <span id="totalRateDisplay">27.3%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Management -->
+  <div class="settings-group">
+    <div class="section">
+      <div class="section-header">
+        <h2>Data Management</h2>
+      </div>
+      <div class="backup-body">
+        <div class="backup-actions">
+          <div class="backup-item">
+            <p class="backup-desc">Download a full backup of all your data as a JSON file.</p>
+            <button class="btn btn-primary" onclick="downloadBackup()">Download Backup</button>
+          </div>
+          <div class="backup-item">
+            <p class="backup-desc">Restore data from a previously downloaded backup file.</p>
+            <button class="btn btn-restore" onclick="document.getElementById('restoreFile').click()">Restore from Backup</button>
+            <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreBackup(this)" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account -->
+  <div class="settings-group">
+    <div class="section">
+      <div class="section-header">
+        <h2>Account</h2>
+      </div>
+      <div class="account-body">
+        <button class="btn btn-logout-large" onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Data is stored in a SQLite database on the server.<br>
+    This is an estimation tool only. Consult a CPA for your actual tax filing.
+  </div>
+
+</div>
+<script src="settings.js"></script>
+</body>
+</html>

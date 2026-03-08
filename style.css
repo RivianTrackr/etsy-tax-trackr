@@ -87,6 +87,106 @@ header { position: relative; }
 }
 .btn-logout:hover { border-color: var(--terracotta); color: var(--terracotta); }
 
+/* Settings gear button */
+.btn-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 18px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-settings:hover { border-color: var(--terracotta); color: var(--terracotta); }
+
+/* Back button (settings page) */
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-back:hover { border-color: var(--terracotta); color: var(--terracotta); }
+
+/* Tax breakdown bar (compact, read-only on dashboard) */
+.tax-breakdown-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  margin-bottom: 40px;
+  background: var(--gold-pale);
+  border: 1px solid #d9b96a;
+  border-radius: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.breakdown-items {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--brown);
+  flex-wrap: wrap;
+}
+.breakdown-items strong { color: var(--charcoal); }
+.breakdown-items .qbi-savings { color: var(--sage); }
+.breakdown-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+}
+.breakdown-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--terracotta);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.breakdown-link:hover { text-decoration: underline; }
+
+/* Settings page groups */
+.settings-group { margin-bottom: 24px; }
+
+/* Settings page inner panel (no outer .tax-rate-panel wrapper) */
+.tax-rate-panel-inner .tax-rate-row { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.tax-rate-panel-inner .tax-rate-total { display: flex; align-items: flex-start; justify-content: space-between; padding: 12px 24px; background: var(--gold-pale); flex-wrap: wrap; gap: 12px; }
+
+/* Settings small input */
+.settings-input-small {
+  max-width: 100px;
+  text-align: center;
+}
+
+/* Logout button (large, for settings page) */
+.btn-logout-large {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 24px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-logout-large:hover { border-color: var(--terracotta); color: var(--terracotta); }
+
+.account-body { padding: 20px 22px; }
+
 /* Summary Cards */
 .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
 @media (max-width: 700px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
