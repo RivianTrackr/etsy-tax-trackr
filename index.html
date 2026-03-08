@@ -13,14 +13,14 @@
 
   <header>
     <div class="eyebrow">&#10022; Self-Employment Tax Tool</div>
-    <h1>Etsy Tax Tracker</h1>
+    <h1 id="dashboardTitle">Etsy Tax Tracker</h1>
     <p>Log your weekly Etsy payouts &amp; deductible expenses &mdash; your withholding adjusts automatically</p>
     <div class="header-controls">
       <div class="year-selector">
         <label for="yearSelect">Tax Year:</label>
         <select id="yearSelect" onchange="changeYear(this.value)"></select>
       </div>
-      <a href="settings.html" class="btn-settings" title="Settings">&#9881;</a>
+      <a href="settings.html" class="btn-settings-text">Settings</a>
     </div>
   </header>
 
@@ -132,6 +132,43 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Recurring Monthly Expenses -->
+  <div class="recurring-section">
+    <div class="section">
+      <div class="section-header">
+        <h2>Recurring Monthly Expenses</h2>
+        <span class="badge expense">Auto-generated each month</span>
+      </div>
+      <div class="entry-form">
+        <div class="form-row">
+          <select id="recurringCat">
+            <option value="Supplies">Supplies / Materials</option>
+            <option value="Shipping">Shipping &amp; Postage</option>
+            <option value="Packaging">Packaging</option>
+            <option value="Tools">Tools &amp; Equipment</option>
+            <option value="Marketing">Marketing &amp; Ads</option>
+            <option value="Software" selected>Software / Subscriptions</option>
+            <option value="Home Office">Home Office</option>
+            <option value="Other">Other</option>
+          </select>
+          <input type="number" id="recurringAmt" placeholder="Monthly amount $" min="0" step="0.01" />
+        </div>
+        <div class="form-row">
+          <input type="text" id="recurringDesc" placeholder="Description (e.g. Canva Pro)" />
+          <input type="month" id="recurringStart" />
+        </div>
+        <div class="recurring-form-footer">
+          <button class="btn btn-primary" onclick="addRecurring()">+ Add Recurring</button>
+          <button class="btn btn-apply" onclick="applyRecurring()">Apply to Year</button>
+          <span class="recurring-hint" id="recurringHint"></span>
+        </div>
+      </div>
+      <div class="entries" id="recurringList">
+        <div class="empty-state">No recurring expenses set up yet</div>
+      </div>
+    </div>
   </div>
 
   <!-- Mileage Tracker -->

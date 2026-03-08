@@ -1,6 +1,6 @@
 // ── Data ─────────────────────────────────────────────────────────────────
 const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(index\.html)?$/, '');
-const DEFAULTS = { income: [], expenses: [], mileage: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725 };
+const DEFAULTS = { income: [], expenses: [], mileage: [], recurringExpenses: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725, stateRate: 0, businessName: '', filingStatus: 'single', defaultCategory: 'Supplies' };
 let data = { ...DEFAULTS };
 let selectedYear = new Date().getFullYear();
 
@@ -46,10 +46,15 @@ function migrateData() {
   data.income      = data.income      || [];
   data.expenses    = data.expenses    || [];
   data.mileage     = data.mileage     || [];
+  data.recurringExpenses = data.recurringExpenses || [];
   data.federalRate = data.federalRate ?? 12;
   data.seRate      = data.seRate      ?? 15.3;
   data.setAside    = data.setAside    ?? 0;
   data.mileageRate = data.mileageRate ?? 0.725;
+  data.stateRate = data.stateRate ?? 0;
+  data.businessName = data.businessName ?? '';
+  data.filingStatus = data.filingStatus ?? 'single';
+  data.defaultCategory = data.defaultCategory ?? 'Supplies';
 }
 
 async function save() {
@@ -80,6 +85,10 @@ function getYearsFromData() {
   for (const e of data.income)   { if (e.date) years.add(parseInt(e.date.slice(0, 4))); }
   for (const e of data.expenses) { if (e.date) years.add(parseInt(e.date.slice(0, 4))); }
   for (const e of data.mileage)  { if (e.date) years.add(parseInt(e.date.slice(0, 4))); }
+  for (const e of data.recurringExpenses) {
+    if (e.start_date) years.add(parseInt(e.start_date.slice(0, 4)));
+    if (e.end_date) years.add(parseInt(e.end_date.slice(0, 4)));
+  }
   return [...years].filter(y => y > 2000).sort((a, b) => b - a);
 }
 
@@ -162,9 +171,10 @@ function calcTotals() {
 
   const federalTaxable = profit > 0 ? Math.max(profit - seDeduction - qbiDeduction, 0) : 0;
   const federalTax     = federalTaxable * ((parseFloat(data.federalRate) || 0) / 100);
-  const tax            = seTax + federalTax;
-  const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0);
-  return { income, expenses: totalDeductions, profit, tax, seTax, federalTax, totalRate, mileageDeduct, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable };
+  const stateTax       = federalTaxable * ((parseFloat(data.stateRate) || 0) / 100);
+  const tax            = seTax + federalTax + stateTax;
+  const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0) + (parseFloat(data.stateRate) || 0);
+  return { income, expenses: totalDeductions, profit, tax, seTax, federalTax, stateTax, totalRate, mileageDeduct, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable };
 }
 
 // ── Quarters (dynamic year) ──────────────────────────────────────────────
@@ -198,6 +208,14 @@ function getQuarters(year) {
 function render() {
   const { income, expenses, profit, tax, seTax, federalTax, mileageDeduct, qbiDeduction } = calcTotals();
 
+  // Apply business name to title
+  const titleEl = document.getElementById('dashboardTitle');
+  if (titleEl) titleEl.textContent = data.businessName || 'Etsy Tax Tracker';
+
+  // Apply default category
+  const catSelect = document.getElementById('expenseCat');
+  if (catSelect && !catSelect._userChanged) catSelect.value = data.defaultCategory || 'Supplies';
+
   document.getElementById('totalIncome').textContent   = fmt(income);
   document.getElementById('totalExpenses').textContent = fmt(expenses);
   document.getElementById('netProfit').textContent     = fmt(profit);
@@ -215,6 +233,7 @@ function render() {
 
   renderList('incomeList',  filterByYear(data.income),   'income');
   renderList('expenseList', filterByYear(data.expenses), 'expense');
+  renderRecurringList();
   renderMileageList();
   renderQuarters(tax);
   renderSetAside(tax);
@@ -464,6 +483,7 @@ async function addExpense() {
   data.expenses.push({ date, cat, desc, amount });
   document.getElementById('expenseDesc').value = '';
   document.getElementById('expenseAmt').value  = '';
+  document.getElementById('expenseCat')._userChanged = false;
   await save(); populateYearSelector(); render();
 }
 
@@ -489,6 +509,122 @@ async function addMileage() {
   }
 }
 
+function renderRecurringList() {
+  const el = document.getElementById('recurringList');
+  if (!el) return;
+  const items = data.recurringExpenses || [];
+  if (!items.length) {
+    el.innerHTML = '<div class="empty-state">No recurring expenses set up yet</div>';
+    document.getElementById('recurringHint').textContent = '';
+    return;
+  }
+  el.innerHTML = items.map(e => {
+    const entryId = e.id != null ? e.id : -1;
+    const endLabel = e.end_date ? e.end_date : 'ongoing';
+    return `<div class="entry-item">
+      <span class="entry-date">${esc(e.start_date || '—')} → ${esc(endLabel)}</span>
+      <span class="entry-desc">${esc(e.desc || '—')}</span>
+      ${e.cat ? `<span class="entry-tag">${esc(e.cat)}</span>` : ''}
+      <span class="entry-amount expense">${fmt(e.amount)}/mo</span>
+      <button class="entry-del" onclick="deleteRecurring(${entryId})">&#215;</button>
+    </div>`;
+  }).join('');
+
+  // Show hint about how many would be applied
+  const count = countPendingRecurring();
+  const hint = document.getElementById('recurringHint');
+  if (count > 0) {
+    hint.textContent = `${count} expense${count > 1 ? 's' : ''} can be applied to ${selectedYear}`;
+  } else {
+    hint.textContent = `All recurring expenses applied for ${selectedYear}`;
+  }
+}
+
+async function addRecurring() {
+  const cat    = document.getElementById('recurringCat').value;
+  const desc   = document.getElementById('recurringDesc').value.trim() || cat;
+  const amount = parseFloat(document.getElementById('recurringAmt').value);
+  const startInput = document.getElementById('recurringStart').value;
+  if (!startInput) { alert('Please select a start month.'); return; }
+  if (!amount || amount <= 0) { alert('Please enter a valid monthly amount.'); return; }
+  const start_date = startInput; // YYYY-MM format
+  data.recurringExpenses.push({ cat, desc, amount, start_date, end_date: null });
+  document.getElementById('recurringDesc').value = '';
+  document.getElementById('recurringAmt').value  = '';
+  await save(); populateYearSelector(); render();
+}
+
+async function deleteRecurring(id) {
+  if (!confirm('Remove this recurring expense?')) return;
+  const idx = data.recurringExpenses.findIndex(e => e.id === id);
+  if (idx >= 0) data.recurringExpenses.splice(idx, 1);
+  await save(); render();
+}
+
+function countPendingRecurring() {
+  let count = 0;
+  const now = new Date();
+  const currentMonth = now.getFullYear() === selectedYear ? now.getMonth() + 1 : 12;
+  for (const r of data.recurringExpenses) {
+    if (!r.start_date) continue;
+    const startParts = r.start_date.split('-');
+    const startYear = parseInt(startParts[0]);
+    const startMonth = parseInt(startParts[1]);
+    let endYear = selectedYear, endMonth = currentMonth;
+    if (r.end_date) {
+      const endParts = r.end_date.split('-');
+      endYear = parseInt(endParts[0]);
+      endMonth = parseInt(endParts[1]);
+    }
+    for (let m = 1; m <= 12 && m <= currentMonth; m++) {
+      if (selectedYear < startYear || (selectedYear === startYear && m < startMonth)) continue;
+      if (r.end_date && (selectedYear > endYear || (selectedYear === endYear && m > endMonth))) continue;
+      const dateStr = `${selectedYear}-${String(m).padStart(2, '0')}-01`;
+      const exists = data.expenses.some(e =>
+        e.date === dateStr && e.desc === r.desc && Math.abs((parseFloat(e.amount) || 0) - r.amount) < 0.01
+      );
+      if (!exists) count++;
+    }
+  }
+  return count;
+}
+
+async function applyRecurring() {
+  const now = new Date();
+  const currentMonth = now.getFullYear() === selectedYear ? now.getMonth() + 1 : 12;
+  let added = 0;
+  for (const r of data.recurringExpenses) {
+    if (!r.start_date) continue;
+    const startParts = r.start_date.split('-');
+    const startYear = parseInt(startParts[0]);
+    const startMonth = parseInt(startParts[1]);
+    let endYear = selectedYear, endMonth = currentMonth;
+    if (r.end_date) {
+      const endParts = r.end_date.split('-');
+      endYear = parseInt(endParts[0]);
+      endMonth = parseInt(endParts[1]);
+    }
+    for (let m = 1; m <= 12 && m <= currentMonth; m++) {
+      if (selectedYear < startYear || (selectedYear === startYear && m < startMonth)) continue;
+      if (r.end_date && (selectedYear > endYear || (selectedYear === endYear && m > endMonth))) continue;
+      const dateStr = `${selectedYear}-${String(m).padStart(2, '0')}-01`;
+      const exists = data.expenses.some(e =>
+        e.date === dateStr && e.desc === r.desc && Math.abs((parseFloat(e.amount) || 0) - r.amount) < 0.01
+      );
+      if (!exists) {
+        data.expenses.push({ date: dateStr, cat: r.cat, desc: r.desc, amount: r.amount });
+        added++;
+      }
+    }
+  }
+  if (added > 0) {
+    await save(); populateYearSelector(); render();
+    alert(`Added ${added} recurring expense${added > 1 ? 's' : ''} to ${selectedYear}.`);
+  } else {
+    alert(`All recurring expenses are already applied for ${selectedYear}.`);
+  }
+}
+
 async function deleteEntry(type, id) {
   if (!confirm('Remove this entry?')) return;
   const arr = type === 'income' ? data.income : type === 'expense' ? data.expenses : data.mileage;
@@ -504,5 +640,10 @@ const today = new Date().toISOString().split('T')[0];
 document.getElementById('incomeDate').value  = today;
 document.getElementById('expenseDate').value = today;
 document.getElementById('mileageDate').value = today;
+document.getElementById('recurringStart').value = today.slice(0, 7);
+
+// Track manual category selection so render() doesn't override it
+const expenseCatEl = document.getElementById('expenseCat');
+if (expenseCatEl) expenseCatEl.addEventListener('change', () => { expenseCatEl._userChanged = true; });
 
 loadData();

@@ -19,6 +19,46 @@
     </div>
   </header>
 
+  <!-- General Settings -->
+  <div class="settings-group">
+    <div class="section">
+      <div class="section-header">
+        <h2>General</h2>
+      </div>
+      <div class="general-settings-body">
+        <div class="settings-field">
+          <label for="businessName">Dashboard Title</label>
+          <span class="settings-field-hint">Personalize the heading on your dashboard (e.g. your shop name)</span>
+          <input type="text" id="businessName" placeholder="Etsy Tax Tracker" oninput="updateBusinessName(this.value)" />
+        </div>
+        <div class="settings-field">
+          <label for="filingStatus">Filing Status</label>
+          <span class="settings-field-hint">Used for reference &mdash; affects Additional Medicare threshold</span>
+          <select id="filingStatus" onchange="updateFilingStatus(this.value)">
+            <option value="single">Single</option>
+            <option value="married_joint">Married Filing Jointly</option>
+            <option value="married_separate">Married Filing Separately</option>
+            <option value="head_household">Head of Household</option>
+          </select>
+        </div>
+        <div class="settings-field">
+          <label for="defaultCategory">Default Expense Category</label>
+          <span class="settings-field-hint">Pre-selected category when adding new deductions</span>
+          <select id="defaultCategory" onchange="updateDefaultCategory(this.value)">
+            <option value="Supplies">Supplies / Materials</option>
+            <option value="Shipping">Shipping &amp; Postage</option>
+            <option value="Packaging">Packaging</option>
+            <option value="Tools">Tools &amp; Equipment</option>
+            <option value="Marketing">Marketing &amp; Ads</option>
+            <option value="Software">Software / Subscriptions</option>
+            <option value="Home Office">Home Office</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Tax Rate Controls -->
   <div class="settings-group">
     <div class="section">
@@ -51,6 +91,14 @@
           <input type="number" id="mileageRate" value="0.725" min="0" max="2" step="0.005" class="settings-input-small" oninput="updateMileageRate(this.value)">
           <span class="rate-val" id="mileageRateDisplay">$0.725/mi</span>
         </div>
+        <div class="tax-rate-row">
+          <div class="rate-info">
+            <label for="stateRate">State Income Tax Rate</label>
+            <span class="rate-hint">Your state marginal rate &mdash; set to 0% if your state has no income tax.</span>
+          </div>
+          <input type="range" id="stateRate" min="0" max="15" value="0" step="0.1" oninput="updateStateRate(this.value)">
+          <span class="rate-val" id="stateRateDisplay">0.0%</span>
+        </div>
         <div class="tax-rate-total">
           <div class="rate-breakdown">
             <span>SE Tax: <strong id="seTaxBreakdown">$0.00</strong></span>
@@ -62,6 +110,9 @@
             <span>Federal: <strong id="federalTaxBreakdown">$0.00</strong></span>
             <span class="rate-detail">QBI deduction (20%): &minus;<span id="qbiDeductionDisplay">$0.00</span></span>
             <span class="rate-detail">Taxable income: <span id="federalTaxableDisplay">$0.00</span></span>
+          </div>
+          <div class="rate-breakdown">
+            <span>State: <strong id="stateTaxBreakdown">$0.00</strong></span>
           </div>
           <div class="rate-total-label">Combined rate: <span id="totalRateDisplay">27.3%</span></div>
         </div>
