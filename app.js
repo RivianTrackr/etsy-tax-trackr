@@ -52,13 +52,23 @@ function migrateData() {
   data.mileageRate = data.mileageRate ?? 0.70;
 }
 
-function save() {
+async function save() {
   localStorage.setItem('etsyTaxData', JSON.stringify(data));
-  fetch(BASE + '/api/data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).catch(() => {});
+  try {
+    const res = await fetch(BASE + '/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      // Reload to pick up server-assigned IDs
+      const fresh = await fetch(BASE + '/api/data');
+      if (fresh.ok) {
+        data = await fresh.json();
+        migrateData();
+      }
+    }
+  } catch (e) { /* offline — localStorage is the fallback */ }
 }
 
 // ── Year helpers ──────────────────────────────────────────────────────────
@@ -85,7 +95,9 @@ function changeYear(y) {
 }
 
 function filterByYear(items) {
-  return items.filter(e => e.date && parseInt(e.date.slice(0, 4)) === selectedYear);
+  return items
+    .filter(e => e.date && parseInt(e.date.slice(0, 4)) === selectedYear)
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -179,16 +191,15 @@ function renderList(id, items, type) {
     el.innerHTML = `<div class="empty-state">${type === 'income' ? 'No payouts logged yet' : 'No deductions logged yet'}</div>`;
     return;
   }
-  el.innerHTML = [...items].reverse().map((e, ri) => {
-    // Find the real index in the full (unfiltered) data array
-    const fullArr = type === 'income' ? data.income : data.expenses;
-    const realIdx = fullArr.indexOf(items[items.length - 1 - ri]);
+  // items are already sorted oldest→newest by filterByYear; reverse for display
+  el.innerHTML = [...items].reverse().map(e => {
+    const entryId = e.id != null ? e.id : -1;
     return `<div class="entry-item">
       <span class="entry-date">${esc(fmtDate(e.date))}</span>
       <span class="entry-desc">${esc(e.desc || '—')}</span>
       ${e.cat ? `<span class="entry-tag">${esc(e.cat)}</span>` : ''}
       <span class="entry-amount ${type}">${fmt(e.amount)}</span>
-      <button class="entry-del" onclick="deleteEntry('${type}',${realIdx})">&#215;</button>
+      <button class="entry-del" onclick="deleteEntry('${type}',${entryId})">&#215;</button>
     </div>`;
   }).join('');
 }
@@ -200,15 +211,15 @@ function renderMileageList() {
     el.innerHTML = '<div class="empty-state">No trips logged yet</div>';
     return;
   }
-  el.innerHTML = [...items].reverse().map((e, ri) => {
-    const realIdx = data.mileage.indexOf(items[items.length - 1 - ri]);
+  el.innerHTML = [...items].reverse().map(e => {
+    const entryId = e.id != null ? e.id : -1;
     const deduction = (parseFloat(e.miles) || 0) * (parseFloat(e.rate) || 0);
     return `<div class="entry-item">
       <span class="entry-date">${esc(fmtDate(e.date))}</span>
       <span class="entry-desc">${esc(e.desc || '—')}</span>
       <span class="entry-tag">${parseFloat(e.miles).toFixed(1)} mi</span>
       <span class="entry-amount expense">${fmt(deduction)}</span>
-      <button class="entry-del" onclick="deleteEntry('mileage',${realIdx})">&#215;</button>
+      <button class="entry-del" onclick="deleteEntry('mileage',${entryId})">&#215;</button>
     </div>`;
   }).join('');
 }
@@ -391,51 +402,51 @@ function renderCharts() {
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────
-function addIncome() {
+async function addIncome() {
   const date   = document.getElementById('incomeDate').value;
   const desc   = document.getElementById('incomeDesc').value.trim() || 'Etsy Payout';
   const amount = parseFloat(document.getElementById('incomeAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
   data.income.push({ date, desc, amount });
-  save(); populateYearSelector(); render();
   document.getElementById('incomeDesc').value = '';
   document.getElementById('incomeAmt').value  = '';
+  await save(); populateYearSelector(); render();
 }
 
-function addExpense() {
+async function addExpense() {
   const date   = document.getElementById('expenseDate').value;
   const cat    = document.getElementById('expenseCat').value;
   const desc   = document.getElementById('expenseDesc').value.trim() || cat;
   const amount = parseFloat(document.getElementById('expenseAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
   data.expenses.push({ date, cat, desc, amount });
-  save(); populateYearSelector(); render();
   document.getElementById('expenseDesc').value = '';
   document.getElementById('expenseAmt').value  = '';
+  await save(); populateYearSelector(); render();
 }
 
-function addMileage() {
+async function addMileage() {
   const date  = document.getElementById('mileageDate').value;
   const desc  = document.getElementById('mileageDesc').value.trim() || 'Business trip';
   const miles = parseFloat(document.getElementById('mileageMiles').value);
   if (!miles || miles <= 0) { alert('Please enter valid miles.'); return; }
   data.mileage.push({ date, desc, miles, rate: data.mileageRate });
-  save(); populateYearSelector(); render();
   document.getElementById('mileageDesc').value  = '';
   document.getElementById('mileageMiles').value = '';
+  await save(); populateYearSelector(); render();
 }
 
-function deleteEntry(type, idx) {
+async function deleteEntry(type, id) {
   if (!confirm('Remove this entry?')) return;
-  if (type === 'income')       data.income.splice(idx, 1);
-  else if (type === 'expense') data.expenses.splice(idx, 1);
-  else if (type === 'mileage') data.mileage.splice(idx, 1);
-  save(); render();
+  const arr = type === 'income' ? data.income : type === 'expense' ? data.expenses : data.mileage;
+  const idx = arr.findIndex(e => e.id === id);
+  if (idx >= 0) arr.splice(idx, 1);
+  await save(); render();
 }
 
-function updateFederalRate(val) { data.federalRate = parseFloat(val) || 0; save(); render(); }
-function updateSeRate(val)      { data.seRate      = parseFloat(val) || 0; save(); render(); }
-function updateSetAside(val)    { data.setAside    = parseFloat(val) || 0; save(); render(); }
+function updateFederalRate(val) { data.federalRate = parseFloat(val) || 0; render(); save(); }
+function updateSeRate(val)      { data.seRate      = parseFloat(val) || 0; render(); save(); }
+function updateSetAside(val)    { data.setAside    = parseFloat(val) || 0; render(); save(); }
 
 // ── Backup & Restore ─────────────────────────────────────────────────────
 function downloadBackup() {
