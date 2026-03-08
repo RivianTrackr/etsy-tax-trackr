@@ -162,6 +162,26 @@ header { position: relative; }
 }
 .breakdown-link:hover { text-decoration: underline; }
 
+/* Save status indicator */
+.save-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 9px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.save-status.save-success {
+  opacity: 1;
+  color: var(--sage);
+  background: var(--sage-pale);
+}
+.save-status.save-warn {
+  opacity: 1;
+  color: var(--gold);
+  background: var(--gold-pale);
+}
+
 /* Settings page groups */
 .settings-group { margin-bottom: 24px; }
 
