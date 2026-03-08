@@ -43,6 +43,7 @@ function migrateData() {
   data.income      = data.income      || [];
   data.expenses    = data.expenses    || [];
   data.mileage     = data.mileage     || [];
+  data.recurringExpenses = data.recurringExpenses || [];
   data.federalRate = data.federalRate ?? 12;
   data.seRate      = data.seRate      ?? 15.3;
   data.setAside    = data.setAside    ?? 0;
@@ -54,17 +55,20 @@ function migrateData() {
 }
 
 let dirty = false;
+let debounceTimer = null;
 function markDirty() {
   dirty = true;
   const btn = document.getElementById('saveBtn');
   if (btn) btn.classList.add('has-changes');
+  // Auto-save after 1.5s of no changes
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => save(), 1500);
 }
 
 let saveTimeout = null;
 function showSaveStatus(success) {
   const btn = document.getElementById('saveBtn');
   if (!btn) return;
-  const orig = btn.textContent;
   btn.textContent = success ? 'Saved!' : 'Saved locally';
   btn.classList.remove('has-changes');
   btn.classList.add(success ? 'save-success' : 'save-warn');
@@ -75,6 +79,11 @@ function showSaveStatus(success) {
     btn.classList.remove('save-success', 'save-warn');
   }, 2000);
 }
+
+// Warn if leaving with unsaved changes
+window.addEventListener('beforeunload', (e) => {
+  if (dirty) { e.preventDefault(); e.returnValue = ''; }
+});
 
 async function save() {
   localStorage.setItem('etsyTaxData', JSON.stringify(data));
