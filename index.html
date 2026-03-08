@@ -157,7 +157,10 @@
         </div>
         <div class="form-row">
           <input type="text" id="recurringDesc" placeholder="Description (e.g. Canva Pro)" />
-          <input type="month" id="recurringStart" />
+          <div class="month-field">
+            <label for="recurringStart">Start month</label>
+            <input type="month" id="recurringStart" />
+          </div>
         </div>
         <div class="recurring-form-footer">
           <button class="btn btn-primary" onclick="addRecurring()">+ Add Recurring</button>
