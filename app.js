@@ -12,7 +12,7 @@ let profitChart = null;
 // ── Persistence ───────────────────────────────────────────────────────────
 async function loadData() {
   try {
-    const res = await fetch(BASE + '/api/data');
+    const res = await fetch(BASE + '/api/data', { cache: 'no-store' });
     if (res.status === 401) {
       window.location.href = BASE + '/login.html';
       return;
@@ -62,7 +62,7 @@ async function save() {
     });
     if (res.ok) {
       // Reload to pick up server-assigned IDs
-      const fresh = await fetch(BASE + '/api/data');
+      const fresh = await fetch(BASE + '/api/data', { cache: 'no-store' });
       if (fresh.ok) {
         data = await fresh.json();
         migrateData();
