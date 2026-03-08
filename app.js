@@ -210,9 +210,13 @@ function renderList(id, items, type) {
 
 function renderMileageList() {
   const el = document.getElementById('mileageList');
+  if (!el) { console.error('mileageList element not found'); return; }
   const items = filterByYear(data.mileage);
   if (!items.length) {
     el.innerHTML = '<div class="empty-state">No trips logged yet</div>';
+    if (data.mileage.length > 0) {
+      console.warn('Mileage entries exist but none match selected year', selectedYear, '- entries:', data.mileage.map(e => e.date));
+    }
     return;
   }
   el.innerHTML = [...items].reverse().map(e => {
@@ -432,17 +436,25 @@ async function addExpense() {
 }
 
 async function addMileage() {
-  const date  = document.getElementById('mileageDate').value;
-  if (!date) { alert('Please select a date.'); return; }
-  const desc  = document.getElementById('mileageDesc').value.trim() || 'Business trip';
-  const miles = parseFloat(document.getElementById('mileageMiles').value);
-  if (!miles || miles <= 0) { alert('Please enter valid miles.'); return; }
-  const rate = parseFloat(data.mileageRate) || 0.70;
-  data.mileage.push({ date, desc, miles, rate });
-  document.getElementById('mileageDesc').value  = '';
-  document.getElementById('mileageMiles').value = '';
-  document.getElementById('mileageDate').value  = new Date().toISOString().split('T')[0];
-  await save(); populateYearSelector(); render();
+  try {
+    const date  = document.getElementById('mileageDate').value;
+    if (!date) { alert('Please select a date.'); return; }
+    const desc  = document.getElementById('mileageDesc').value.trim() || 'Business trip';
+    const miles = parseFloat(document.getElementById('mileageMiles').value);
+    if (!miles || miles <= 0) { alert('Please enter valid miles.'); return; }
+    const rate = parseFloat(data.mileageRate) || 0.70;
+    data.mileage.push({ date, desc, miles, rate });
+    document.getElementById('mileageDesc').value  = '';
+    document.getElementById('mileageMiles').value = '';
+    document.getElementById('mileageDate').value  = new Date().toISOString().split('T')[0];
+    await save();
+    populateYearSelector();
+    render();
+    console.log('Mileage added successfully:', { date, desc, miles, rate }, 'Total entries:', data.mileage.length);
+  } catch (err) {
+    console.error('addMileage error:', err);
+    alert('Error logging trip: ' + err.message);
+  }
 }
 
 async function deleteEntry(type, id) {
