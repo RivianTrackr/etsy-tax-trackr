@@ -128,20 +128,42 @@ function calcTotals() {
   const mileageDeduct  = yearMileage.reduce((s, e) => s + ((parseFloat(e.miles) || 0) * (parseFloat(e.rate) || 0)), 0);
   const totalDeductions = expenses + mileageDeduct;
   const profit         = income - totalDeductions;
+  // IRS only taxes 92.35% of net profit for self-employment tax
+  const seTaxableIncome = profit > 0 ? profit * 0.9235 : 0;
+  const seTax          = seTaxableIncome * ((parseFloat(data.seRate) || 0) / 100);
+  // Deduct employer-equivalent half of SE tax from income before federal tax
+  const seDeduction    = seTax / 2;
+  const federalTaxable = profit > 0 ? Math.max(profit - seDeduction, 0) : 0;
+  const federalTax     = federalTaxable * ((parseFloat(data.federalRate) || 0) / 100);
+  const tax            = seTax + federalTax;
   const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0);
-  const seTax          = profit > 0 ? profit * ((parseFloat(data.seRate) || 0) / 100) : 0;
-  const federalTax     = profit > 0 ? profit * ((parseFloat(data.federalRate) || 0) / 100) : 0;
-  const tax            = profit > 0 ? profit * (totalRate / 100) : 0;
   return { income, expenses: totalDeductions, profit, tax, seTax, federalTax, totalRate, mileageDeduct };
 }
 
 // ── Quarters (dynamic year) ──────────────────────────────────────────────
+// If a due date falls on a weekend, shift to next business day (IRS rule)
+function adjustForWeekend(date) {
+  const day = date.getDay();
+  if (day === 0) date.setDate(date.getDate() + 1); // Sunday → Monday
+  if (day === 6) date.setDate(date.getDate() + 2); // Saturday → Monday
+  return date;
+}
+
+function formatDueDate(date) {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
 function getQuarters(year) {
+  const q1Due = adjustForWeekend(new Date(year, 3, 15));
+  const q2Due = adjustForWeekend(new Date(year, 5, 15));
+  const q3Due = adjustForWeekend(new Date(year, 8, 15));
+  const q4Due = adjustForWeekend(new Date(year + 1, 0, 15));
   return [
-    { label: 'Q1', period: 'Jan – Mar', due: `Apr 15, ${year}`,     dueDate: new Date(`${year}-04-15`) },
-    { label: 'Q2', period: 'Apr – May', due: `Jun 15, ${year}`,     dueDate: new Date(`${year}-06-15`) },
-    { label: 'Q3', period: 'Jun – Aug', due: `Sep 15, ${year}`,     dueDate: new Date(`${year}-09-15`) },
-    { label: 'Q4', period: 'Sep – Dec', due: `Jan 15, ${year + 1}`, dueDate: new Date(`${year + 1}-01-15`) },
+    { label: 'Q1', period: 'Jan – Mar', due: formatDueDate(q1Due), dueDate: q1Due },
+    { label: 'Q2', period: 'Apr – May', due: formatDueDate(q2Due), dueDate: q2Due },
+    { label: 'Q3', period: 'Jun – Aug', due: formatDueDate(q3Due), dueDate: q3Due },
+    { label: 'Q4', period: 'Sep – Dec', due: formatDueDate(q4Due), dueDate: q4Due },
   ];
 }
 
