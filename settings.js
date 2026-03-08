@@ -66,10 +66,10 @@ function markDirty() {
 }
 
 let saveTimeout = null;
-function showSaveStatus(success) {
+function showSaveStatus(success, msg) {
   const btn = document.getElementById('saveBtn');
   if (!btn) return;
-  btn.textContent = success ? 'Saved!' : 'Saved locally';
+  btn.textContent = success ? 'Saved!' : (msg || 'Saved locally');
   btn.classList.remove('has-changes');
   btn.classList.add(success ? 'save-success' : 'save-warn');
   dirty = false;
@@ -93,16 +93,22 @@ async function save() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    if (res.status === 401) {
+      window.location.href = BASE + '/login.html';
+      return;
+    }
     if (res.ok) {
       data = await res.json();
       migrateData();
       showSaveStatus(true);
     } else {
-      showSaveStatus(false);
+      const errText = await res.text().catch(() => '');
+      console.error('Save failed:', res.status, errText);
+      showSaveStatus(false, `Save failed (${res.status})`);
     }
   } catch (e) {
-    console.warn('Save offline:', e.message);
-    showSaveStatus(false);
+    console.error('Save error:', e);
+    showSaveStatus(false, 'Server unreachable');
   }
 }
 
