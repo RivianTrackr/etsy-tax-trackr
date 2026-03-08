@@ -276,6 +276,10 @@ app.get('/api/data', requireAuth, (req, res) => {
     seRate:      parseFloat(settings.seRate ?? 15.3),
     setAside:    parseFloat(settings.setAside ?? 0),
     mileageRate: parseFloat(settings.mileageRate ?? 0.725),
+    stateRate:   parseFloat(settings.stateRate ?? 0),
+    businessName: settings.businessName ?? '',
+    filingStatus: settings.filingStatus ?? 'single',
+    defaultCategory: settings.defaultCategory ?? 'Supplies',
   });
 });
 
@@ -310,6 +314,10 @@ app.post('/api/data', requireAuth, (req, res) => {
     stmts.upsertSetting.run('seRate',      String(body.seRate ?? 15.3));
     stmts.upsertSetting.run('setAside',    String(body.setAside ?? 0));
     stmts.upsertSetting.run('mileageRate', String(body.mileageRate ?? 0.725));
+    stmts.upsertSetting.run('stateRate',   String(body.stateRate ?? 0));
+    if (body.businessName !== undefined) stmts.upsertSetting.run('businessName', String(body.businessName ?? ''));
+    if (body.filingStatus !== undefined) stmts.upsertSetting.run('filingStatus', String(body.filingStatus ?? 'single'));
+    if (body.defaultCategory !== undefined) stmts.upsertSetting.run('defaultCategory', String(body.defaultCategory ?? 'Supplies'));
   });
 
   try {
@@ -330,6 +338,10 @@ app.post('/api/data', requireAuth, (req, res) => {
       seRate:      parseFloat(settings.seRate ?? 15.3),
       setAside:    parseFloat(settings.setAside ?? 0),
       mileageRate: parseFloat(settings.mileageRate ?? 0.725),
+      stateRate:   parseFloat(settings.stateRate ?? 0),
+      businessName: settings.businessName ?? '',
+      filingStatus: settings.filingStatus ?? 'single',
+      defaultCategory: settings.defaultCategory ?? 'Supplies',
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save data' });

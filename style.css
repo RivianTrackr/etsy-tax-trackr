@@ -87,21 +87,20 @@ header { position: relative; }
 }
 .btn-logout:hover { border-color: var(--terracotta); color: var(--terracotta); }
 
-/* Settings gear button */
-.btn-settings {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
+/* Settings text button (matches year dropdown) */
+.btn-settings-text {
+  padding: 6px 10px;
   border: 1.5px solid var(--border);
   border-radius: 8px;
-  font-size: 18px;
-  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--charcoal);
   text-decoration: none;
-  transition: all 0.2s;
+  background: var(--cream);
+  transition: border-color 0.2s;
 }
-.btn-settings:hover { border-color: var(--terracotta); color: var(--terracotta); }
+.btn-settings-text:hover { border-color: var(--terracotta); color: var(--terracotta); }
 
 /* Back button (settings page) */
 .btn-back {
@@ -159,6 +158,14 @@ header { position: relative; }
 
 /* Settings page groups */
 .settings-group { margin-bottom: 24px; }
+
+/* General settings fields */
+.general-settings-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 20px; }
+.settings-field { display: flex; flex-direction: column; gap: 4px; }
+.settings-field label { font-size: 13px; font-weight: 600; color: var(--brown); }
+.settings-field-hint { font-size: 11px; color: var(--muted); line-height: 1.4; margin-bottom: 4px; }
+.settings-field input[type=text],
+.settings-field select { max-width: 360px; }
 
 /* Settings page inner panel (no outer .tax-rate-panel wrapper) */
 .tax-rate-panel-inner .tax-rate-row { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--border); }

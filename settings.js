@@ -1,6 +1,6 @@
 // ── Settings Page Logic ──────────────────────────────────────────────────
 const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(settings\.html)?$/, '');
-const DEFAULTS = { income: [], expenses: [], mileage: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725 };
+const DEFAULTS = { income: [], expenses: [], mileage: [], recurringExpenses: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725, stateRate: 0, businessName: '', filingStatus: 'single', defaultCategory: 'Supplies' };
 let data = { ...DEFAULTS };
 
 // 2026 IRS thresholds
@@ -47,6 +47,10 @@ function migrateData() {
   data.seRate      = data.seRate      ?? 15.3;
   data.setAside    = data.setAside    ?? 0;
   data.mileageRate = data.mileageRate ?? 0.725;
+  data.stateRate = data.stateRate ?? 0;
+  data.businessName = data.businessName ?? '';
+  data.filingStatus = data.filingStatus ?? 'single';
+  data.defaultCategory = data.defaultCategory ?? 'Supplies';
 }
 
 async function save() {
@@ -94,26 +98,37 @@ function calcTotals() {
   const qbiDeduction   = profit > 0 ? Math.max(profit - seDeduction, 0) * 0.20 : 0;
   const federalTaxable = profit > 0 ? Math.max(profit - seDeduction - qbiDeduction, 0) : 0;
   const federalTax     = federalTaxable * ((parseFloat(data.federalRate) || 0) / 100);
-  const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0);
+  const stateTax       = federalTaxable * ((parseFloat(data.stateRate) || 0) / 100);
+  const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0) + (parseFloat(data.stateRate) || 0);
 
-  return { seTax, federalTax, totalRate, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable };
+  return { seTax, federalTax, stateTax, totalRate, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable };
 }
 
 // ── Render ───────────────────────────────────────────────────────────────
 function render() {
-  const { seTax, federalTax, totalRate, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable } = calcTotals();
+  const { seTax, federalTax, stateTax, totalRate, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable } = calcTotals();
 
+  // General settings
+  const nameInput = document.getElementById('businessName');
+  if (document.activeElement !== nameInput) nameInput.value = data.businessName || '';
+  document.getElementById('filingStatus').value    = data.filingStatus || 'single';
+  document.getElementById('defaultCategory').value = data.defaultCategory || 'Supplies';
+
+  // Tax rates
   document.getElementById('federalRate').value = data.federalRate;
   document.getElementById('seRate').value      = data.seRate;
   document.getElementById('mileageRate').value = data.mileageRate;
+  document.getElementById('stateRate').value   = data.stateRate || 0;
 
   document.getElementById('federalRateDisplay').textContent = `${parseFloat(data.federalRate).toFixed(1)}%`;
   document.getElementById('seRateDisplay').textContent      = `${parseFloat(data.seRate).toFixed(1)}%`;
   document.getElementById('mileageRateDisplay').textContent = `$${parseFloat(data.mileageRate).toFixed(3)}/mi`;
+  document.getElementById('stateRateDisplay').textContent   = `${parseFloat(data.stateRate || 0).toFixed(1)}%`;
   document.getElementById('totalRateDisplay').textContent   = `${totalRate.toFixed(1)}%`;
 
   document.getElementById('seTaxBreakdown').textContent      = fmt(seTax);
   document.getElementById('federalTaxBreakdown').textContent = fmt(federalTax);
+  document.getElementById('stateTaxBreakdown').textContent   = fmt(stateTax);
   document.getElementById('ssTaxDetail').textContent         = fmt(ssTax);
   document.getElementById('medicareTaxDetail').textContent   = fmt(medicareTax + addlMedicareTax);
   document.getElementById('qbiDeductionDisplay').textContent = fmt(qbiDeduction);
@@ -122,6 +137,7 @@ function render() {
 
   updateSliderBg('federalRate', data.federalRate, 0, 37);
   updateSliderBg('seRate',      data.seRate,      0, 20);
+  updateSliderBg('stateRate',   data.stateRate || 0, 0, 15);
 }
 
 function updateSliderBg(id, val, min, max) {
@@ -131,9 +147,13 @@ function updateSliderBg(id, val, min, max) {
 }
 
 // ── Actions ──────────────────────────────────────────────────────────────
-function updateFederalRate(val) { data.federalRate = parseFloat(val) || 0; render(); save(); }
-function updateSeRate(val)      { data.seRate      = parseFloat(val) || 0; render(); save(); }
-function updateMileageRate(val) { data.mileageRate = parseFloat(val) || 0.725; render(); save(); }
+function updateFederalRate(val)   { data.federalRate = parseFloat(val) || 0; render(); save(); }
+function updateSeRate(val)        { data.seRate      = parseFloat(val) || 0; render(); save(); }
+function updateMileageRate(val)   { data.mileageRate = parseFloat(val) || 0.725; render(); save(); }
+function updateStateRate(val)     { data.stateRate   = parseFloat(val) || 0; render(); save(); }
+function updateBusinessName(val)  { data.businessName = val.trim(); save(); }
+function updateFilingStatus(val)  { data.filingStatus = val; save(); }
+function updateDefaultCategory(val) { data.defaultCategory = val; save(); }
 
 // ── Backup & Restore ─────────────────────────────────────────────────────
 function downloadBackup() {

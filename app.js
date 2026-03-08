@@ -1,6 +1,6 @@
 // ── Data ─────────────────────────────────────────────────────────────────
 const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(index\.html)?$/, '');
-const DEFAULTS = { income: [], expenses: [], mileage: [], recurringExpenses: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725 };
+const DEFAULTS = { income: [], expenses: [], mileage: [], recurringExpenses: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725, stateRate: 0, businessName: '', filingStatus: 'single', defaultCategory: 'Supplies' };
 let data = { ...DEFAULTS };
 let selectedYear = new Date().getFullYear();
 
@@ -51,6 +51,10 @@ function migrateData() {
   data.seRate      = data.seRate      ?? 15.3;
   data.setAside    = data.setAside    ?? 0;
   data.mileageRate = data.mileageRate ?? 0.725;
+  data.stateRate = data.stateRate ?? 0;
+  data.businessName = data.businessName ?? '';
+  data.filingStatus = data.filingStatus ?? 'single';
+  data.defaultCategory = data.defaultCategory ?? 'Supplies';
 }
 
 async function save() {
@@ -167,9 +171,10 @@ function calcTotals() {
 
   const federalTaxable = profit > 0 ? Math.max(profit - seDeduction - qbiDeduction, 0) : 0;
   const federalTax     = federalTaxable * ((parseFloat(data.federalRate) || 0) / 100);
-  const tax            = seTax + federalTax;
-  const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0);
-  return { income, expenses: totalDeductions, profit, tax, seTax, federalTax, totalRate, mileageDeduct, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable };
+  const stateTax       = federalTaxable * ((parseFloat(data.stateRate) || 0) / 100);
+  const tax            = seTax + federalTax + stateTax;
+  const totalRate      = (parseFloat(data.federalRate) || 0) + (parseFloat(data.seRate) || 0) + (parseFloat(data.stateRate) || 0);
+  return { income, expenses: totalDeductions, profit, tax, seTax, federalTax, stateTax, totalRate, mileageDeduct, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable };
 }
 
 // ── Quarters (dynamic year) ──────────────────────────────────────────────
@@ -202,6 +207,14 @@ function getQuarters(year) {
 // ── Render ────────────────────────────────────────────────────────────────
 function render() {
   const { income, expenses, profit, tax, seTax, federalTax, mileageDeduct, qbiDeduction } = calcTotals();
+
+  // Apply business name to title
+  const titleEl = document.getElementById('dashboardTitle');
+  if (titleEl) titleEl.textContent = data.businessName || 'Etsy Tax Tracker';
+
+  // Apply default category
+  const catSelect = document.getElementById('expenseCat');
+  if (catSelect && !catSelect._userChanged) catSelect.value = data.defaultCategory || 'Supplies';
 
   document.getElementById('totalIncome').textContent   = fmt(income);
   document.getElementById('totalExpenses').textContent = fmt(expenses);
@@ -470,6 +483,7 @@ async function addExpense() {
   data.expenses.push({ date, cat, desc, amount });
   document.getElementById('expenseDesc').value = '';
   document.getElementById('expenseAmt').value  = '';
+  document.getElementById('expenseCat')._userChanged = false;
   await save(); populateYearSelector(); render();
 }
 
@@ -627,5 +641,9 @@ document.getElementById('incomeDate').value  = today;
 document.getElementById('expenseDate').value = today;
 document.getElementById('mileageDate').value = today;
 document.getElementById('recurringStart').value = today.slice(0, 7);
+
+// Track manual category selection so render() doesn't override it
+const expenseCatEl = document.getElementById('expenseCat');
+if (expenseCatEl) expenseCatEl.addEventListener('change', () => { expenseCatEl._userChanged = true; });
 
 loadData();
