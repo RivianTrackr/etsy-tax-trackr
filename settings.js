@@ -53,6 +53,16 @@ function migrateData() {
   data.defaultCategory = data.defaultCategory ?? 'Supplies';
 }
 
+let saveTimeout = null;
+function showSaveStatus(success) {
+  const el = document.getElementById('saveStatus');
+  if (!el) return;
+  el.textContent = success ? 'Saved' : 'Saved locally';
+  el.className = 'save-status ' + (success ? 'save-success' : 'save-warn');
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => { el.className = 'save-status'; }, 2000);
+}
+
 async function save() {
   localStorage.setItem('etsyTaxData', JSON.stringify(data));
   try {
@@ -64,9 +74,13 @@ async function save() {
     if (res.ok) {
       data = await res.json();
       migrateData();
+      showSaveStatus(true);
+    } else {
+      showSaveStatus(false);
     }
   } catch (e) {
     console.warn('Save offline:', e.message);
+    showSaveStatus(false);
   }
 }
 

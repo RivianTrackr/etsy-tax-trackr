@@ -59,6 +59,7 @@ header { position: relative; }
 
 .year-selector select {
   padding: 6px 10px;
+  padding-right: 28px;
   border: 1.5px solid var(--border);
   border-radius: 9px;
   font-family: 'DM Sans', sans-serif;
@@ -66,6 +67,11 @@ header { position: relative; }
   font-weight: 600;
   color: var(--charcoal);
   background: var(--cream);
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 12 8'%3E%3Cpath fill='%239a8878' d='M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
   cursor: pointer;
   outline: none;
   transition: border-color 0.2s;
@@ -155,6 +161,26 @@ header { position: relative; }
   white-space: nowrap;
 }
 .breakdown-link:hover { text-decoration: underline; }
+
+/* Save status indicator */
+.save-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 9px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.save-status.save-success {
+  opacity: 1;
+  color: var(--sage);
+  background: var(--sage-pale);
+}
+.save-status.save-warn {
+  opacity: 1;
+  color: var(--gold);
+  background: var(--gold-pale);
+}
 
 /* Settings page groups */
 .settings-group { margin-bottom: 24px; }
@@ -269,7 +295,8 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .entry-form { padding: 18px 22px; border-bottom: 1px solid var(--border); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; overflow: hidden; }
 .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
-input[type=text], input[type=number], input[type=date], input[type=month], select { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--cream); color: var(--charcoal); transition: border-color 0.2s; outline: none; min-width: 0; max-width: 100%; }
+input[type=text], input[type=number], input[type=date], input[type=month], select { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--cream); color: var(--charcoal); transition: border-color 0.2s; outline: none; min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; }
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239a8878' d='M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
 input:focus, select:focus { border-color: var(--terracotta); background: #fff; }
 input::placeholder { color: var(--muted); }
 
