@@ -67,8 +67,12 @@ async function save() {
         data = await fresh.json();
         migrateData();
       }
+    } else {
+      console.error('Save failed:', res.status, await res.text().catch(() => ''));
     }
-  } catch (e) { /* offline — localStorage is the fallback */ }
+  } catch (e) {
+    console.warn('Save offline, using localStorage fallback:', e.message);
+  }
 }
 
 // ── Year helpers ──────────────────────────────────────────────────────────
@@ -217,7 +221,7 @@ function renderMileageList() {
     return `<div class="entry-item">
       <span class="entry-date">${esc(fmtDate(e.date))}</span>
       <span class="entry-desc">${esc(e.desc || '—')}</span>
-      <span class="entry-tag">${parseFloat(e.miles).toFixed(1)} mi</span>
+      <span class="entry-tag">${(parseFloat(e.miles) || 0).toFixed(1)} mi</span>
       <span class="entry-amount expense">${fmt(deduction)}</span>
       <button class="entry-del" onclick="deleteEntry('mileage',${entryId})">&#215;</button>
     </div>`;
@@ -404,6 +408,7 @@ function renderCharts() {
 // ── Actions ───────────────────────────────────────────────────────────────
 async function addIncome() {
   const date   = document.getElementById('incomeDate').value;
+  if (!date) { alert('Please select a date.'); return; }
   const desc   = document.getElementById('incomeDesc').value.trim() || 'Etsy Payout';
   const amount = parseFloat(document.getElementById('incomeAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
@@ -415,6 +420,7 @@ async function addIncome() {
 
 async function addExpense() {
   const date   = document.getElementById('expenseDate').value;
+  if (!date) { alert('Please select a date.'); return; }
   const cat    = document.getElementById('expenseCat').value;
   const desc   = document.getElementById('expenseDesc').value.trim() || cat;
   const amount = parseFloat(document.getElementById('expenseAmt').value);
@@ -427,12 +433,15 @@ async function addExpense() {
 
 async function addMileage() {
   const date  = document.getElementById('mileageDate').value;
+  if (!date) { alert('Please select a date.'); return; }
   const desc  = document.getElementById('mileageDesc').value.trim() || 'Business trip';
   const miles = parseFloat(document.getElementById('mileageMiles').value);
   if (!miles || miles <= 0) { alert('Please enter valid miles.'); return; }
-  data.mileage.push({ date, desc, miles, rate: data.mileageRate });
+  const rate = parseFloat(data.mileageRate) || 0.70;
+  data.mileage.push({ date, desc, miles, rate });
   document.getElementById('mileageDesc').value  = '';
   document.getElementById('mileageMiles').value = '';
+  document.getElementById('mileageDate').value  = new Date().toISOString().split('T')[0];
   await save(); populateYearSelector(); render();
 }
 
