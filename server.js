@@ -47,7 +47,7 @@ db.exec(`
     date  TEXT,
     desc  TEXT,
     miles REAL NOT NULL,
-    rate  REAL NOT NULL DEFAULT 0.70
+    rate  REAL NOT NULL DEFAULT 0.725
   );
 
   CREATE TABLE IF NOT EXISTS users (
@@ -209,6 +209,22 @@ function migrateFromJson() {
 
 migrateFromJson();
 
+// ── Migrate 2026 mileage entries from old $0.70 rate to $0.725 ─────────
+(function migrate2026MileageRate() {
+  const updated = db.prepare(
+    "UPDATE mileage SET rate = 0.725 WHERE date LIKE '2026-%' AND rate = 0.70"
+  ).run();
+  if (updated.changes > 0) {
+    console.log(`Updated ${updated.changes} mileage entries for 2026 from $0.70 to $0.725`);
+  }
+  // Also update the stored mileageRate setting if it's still 0.70
+  const current = db.prepare("SELECT value FROM settings WHERE key = 'mileageRate'").get();
+  if (current && parseFloat(current.value) === 0.70) {
+    db.prepare("UPDATE settings SET value = '0.725' WHERE key = 'mileageRate'").run();
+    console.log('Updated mileageRate setting from 0.70 to 0.725');
+  }
+})();
+
 // ── Prepared statements ─────────────────────────────────────────────────
 const stmts = {
   allIncome:     db.prepare('SELECT id, date, desc, amount FROM income ORDER BY date, id'),
@@ -238,7 +254,7 @@ app.get('/api/data', requireAuth, (req, res) => {
     federalRate: parseFloat(settings.federalRate ?? 12),
     seRate:      parseFloat(settings.seRate ?? 15.3),
     setAside:    parseFloat(settings.setAside ?? 0),
-    mileageRate: parseFloat(settings.mileageRate ?? 0.70),
+    mileageRate: parseFloat(settings.mileageRate ?? 0.725),
   });
 });
 
@@ -261,13 +277,13 @@ app.post('/api/data', requireAuth, (req, res) => {
 
     db.exec('DELETE FROM mileage');
     for (const e of (body.mileage || [])) {
-      stmts.insertMileage.run(e.date || null, e.desc || null, parseFloat(e.miles) || 0, parseFloat(e.rate) || 0.70);
+      stmts.insertMileage.run(e.date || null, e.desc || null, parseFloat(e.miles) || 0, parseFloat(e.rate) || 0.725);
     }
 
     stmts.upsertSetting.run('federalRate', String(body.federalRate ?? 12));
     stmts.upsertSetting.run('seRate',      String(body.seRate ?? 15.3));
     stmts.upsertSetting.run('setAside',    String(body.setAside ?? 0));
-    stmts.upsertSetting.run('mileageRate', String(body.mileageRate ?? 0.70));
+    stmts.upsertSetting.run('mileageRate', String(body.mileageRate ?? 0.725));
   });
 
   try {
@@ -285,7 +301,7 @@ app.post('/api/data', requireAuth, (req, res) => {
       federalRate: parseFloat(settings.federalRate ?? 12),
       seRate:      parseFloat(settings.seRate ?? 15.3),
       setAside:    parseFloat(settings.setAside ?? 0),
-      mileageRate: parseFloat(settings.mileageRate ?? 0.70),
+      mileageRate: parseFloat(settings.mileageRate ?? 0.725),
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save data' });
@@ -332,7 +348,7 @@ app.post('/api/restore', requireAuth, (req, res) => {
 
     db.exec('DELETE FROM mileage');
     for (const e of (body.mileage || [])) {
-      stmts.insertMileage.run(e.date || null, e.desc || null, parseFloat(e.miles) || 0, parseFloat(e.rate) || 0.70);
+      stmts.insertMileage.run(e.date || null, e.desc || null, parseFloat(e.miles) || 0, parseFloat(e.rate) || 0.725);
     }
 
     if (body.settings) {

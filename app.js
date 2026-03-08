@@ -1,6 +1,6 @@
 // ── Data ─────────────────────────────────────────────────────────────────
 const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(index\.html)?$/, '');
-const DEFAULTS = { income: [], expenses: [], mileage: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.70 };
+const DEFAULTS = { income: [], expenses: [], mileage: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725 };
 let data = { ...DEFAULTS };
 let selectedYear = new Date().getFullYear();
 
@@ -49,7 +49,7 @@ function migrateData() {
   data.federalRate = data.federalRate ?? 12;
   data.seRate      = data.seRate      ?? 15.3;
   data.setAside    = data.setAside    ?? 0;
-  data.mileageRate = data.mileageRate ?? 0.70;
+  data.mileageRate = data.mileageRate ?? 0.725;
 }
 
 async function save() {
@@ -439,7 +439,7 @@ async function addMileage() {
     const desc  = document.getElementById('mileageDesc').value.trim() || 'Business trip';
     const miles = parseFloat(document.getElementById('mileageMiles').value);
     if (!miles || miles <= 0) { alert('Please enter valid miles.'); return; }
-    const rate = parseFloat(data.mileageRate) || 0.70;
+    const rate = parseFloat(data.mileageRate) || 0.725;
     data.mileage.push({ date, desc, miles, rate });
     document.getElementById('mileageDesc').value  = '';
     document.getElementById('mileageMiles').value = '';
