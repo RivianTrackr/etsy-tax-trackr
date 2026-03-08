@@ -272,7 +272,21 @@ app.post('/api/data', requireAuth, (req, res) => {
 
   try {
     sync();
-    res.json({ ok: true });
+    // Return saved data with server-assigned IDs
+    const income   = stmts.allIncome.all();
+    const expenses = stmts.allExpenses.all();
+    const mileage  = stmts.allMileage.all();
+    const settings = Object.fromEntries(stmts.allSettings.all().map(r => [r.key, r.value]));
+    res.json({
+      ok: true,
+      income,
+      expenses,
+      mileage,
+      federalRate: parseFloat(settings.federalRate ?? 12),
+      seRate:      parseFloat(settings.seRate ?? 15.3),
+      setAside:    parseFloat(settings.setAside ?? 0),
+      mileageRate: parseFloat(settings.mileageRate ?? 0.70),
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save data' });
   }
