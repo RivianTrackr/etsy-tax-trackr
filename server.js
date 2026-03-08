@@ -111,6 +111,14 @@ app.get('/index.html', (req, res) => {
   serveHtmlWithBasePath(path.join(__dirname, 'index.html'), res);
 });
 
+// Settings page — protected
+app.get('/settings.html', (req, res) => {
+  if (!req.session || !req.session.userId) {
+    return res.redirect(BASE_PATH + '/login.html');
+  }
+  serveHtmlWithBasePath(path.join(__dirname, 'settings.html'), res);
+});
+
 // Static files (CSS, JS, fonts) — served to everyone
 app.use(express.static(__dirname));
 

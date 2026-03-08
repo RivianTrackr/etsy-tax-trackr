@@ -196,7 +196,7 @@ function getQuarters(year) {
 
 // ── Render ────────────────────────────────────────────────────────────────
 function render() {
-  const { income, expenses, profit, tax, seTax, federalTax, totalRate, mileageDeduct, ssTax, medicareTax, addlMedicareTax, qbiDeduction, seDeduction, federalTaxable } = calcTotals();
+  const { income, expenses, profit, tax, seTax, federalTax, mileageDeduct, qbiDeduction } = calcTotals();
 
   document.getElementById('totalIncome').textContent   = fmt(income);
   document.getElementById('totalExpenses').textContent = fmt(expenses);
@@ -204,25 +204,10 @@ function render() {
   document.getElementById('taxOwed').textContent       = fmt(tax);
   document.getElementById('taxRateLabel').textContent  = profit > 0 ? `effective ${((tax / profit) * 100).toFixed(1)}%` : 'at 0%';
 
-  // Rate inputs
-  document.getElementById('federalRate').value         = data.federalRate;
-  document.getElementById('seRate').value              = data.seRate;
-  document.getElementById('federalRateDisplay').textContent = `${parseFloat(data.federalRate).toFixed(1)}%`;
-  document.getElementById('seRateDisplay').textContent      = `${parseFloat(data.seRate).toFixed(1)}%`;
-  document.getElementById('totalRateDisplay').textContent   = `${totalRate.toFixed(1)}%`;
-  document.getElementById('seTaxBreakdown').textContent     = fmt(seTax);
+  // Tax breakdown bar
+  document.getElementById('seTaxBreakdown').textContent      = fmt(seTax);
   document.getElementById('federalTaxBreakdown').textContent = fmt(federalTax);
-
-  // Detailed SE breakdown
-  document.getElementById('ssTaxDetail').textContent        = fmt(ssTax);
-  document.getElementById('medicareTaxDetail').textContent  = fmt(medicareTax + addlMedicareTax);
   document.getElementById('qbiDeductionDisplay').textContent = fmt(qbiDeduction);
-  document.getElementById('seDeductionDisplay').textContent  = fmt(seDeduction);
-  document.getElementById('federalTaxableDisplay').textContent = fmt(federalTaxable);
-
-  // Slider gradient helpers
-  updateSliderBg('federalRate', data.federalRate, 0, 37);
-  updateSliderBg('seRate',      data.seRate,      0, 20);
 
   // Mileage info
   document.getElementById('mileageRateBadge').textContent = `IRS rate: $${parseFloat(data.mileageRate).toFixed(2)}/mi`;
@@ -234,12 +219,6 @@ function render() {
   renderQuarters(tax);
   renderSetAside(tax);
   renderCharts();
-}
-
-function updateSliderBg(id, val, min, max) {
-  const pct = ((parseFloat(val) - min) / (max - min)) * 100;
-  document.getElementById(id).style.background =
-    `linear-gradient(to right, var(--terracotta) 0%, var(--terracotta) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
 }
 
 function renderList(id, items, type) {
@@ -518,53 +497,7 @@ async function deleteEntry(type, id) {
   await save(); render();
 }
 
-function updateFederalRate(val) { data.federalRate = parseFloat(val) || 0; render(); save(); }
-function updateSeRate(val)      { data.seRate      = parseFloat(val) || 0; render(); save(); }
 function updateSetAside(val)    { data.setAside    = parseFloat(val) || 0; render(); save(); }
-
-// ── Backup & Restore ─────────────────────────────────────────────────────
-function downloadBackup() {
-  window.location.href = BASE + '/api/backup';
-}
-
-async function restoreBackup(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  if (!confirm('This will replace ALL your current data with the backup. Are you sure?')) {
-    input.value = '';
-    return;
-  }
-
-  try {
-    const text = await file.text();
-    const backup = JSON.parse(text);
-
-    const res = await fetch(BASE + '/api/restore', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: text,
-    });
-
-    if (res.ok) {
-      alert('Backup restored successfully! Reloading...');
-      window.location.reload();
-    } else {
-      const err = await res.json();
-      alert('Restore failed: ' + (err.error || 'Unknown error'));
-    }
-  } catch (e) {
-    alert('Invalid backup file.');
-  }
-
-  input.value = '';
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────
-async function logout() {
-  await fetch(BASE + '/api/auth/logout', { method: 'POST' });
-  window.location.href = BASE + '/login.html';
-}
 
 // ── Init ──────────────────────────────────────────────────────────────────
 const today = new Date().toISOString().split('T')[0];
