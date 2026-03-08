@@ -134,6 +134,43 @@
 
   </div>
 
+  <!-- Recurring Monthly Expenses -->
+  <div class="recurring-section">
+    <div class="section">
+      <div class="section-header">
+        <h2>Recurring Monthly Expenses</h2>
+        <span class="badge expense">Auto-generated each month</span>
+      </div>
+      <div class="entry-form">
+        <div class="form-row">
+          <select id="recurringCat">
+            <option value="Supplies">Supplies / Materials</option>
+            <option value="Shipping">Shipping &amp; Postage</option>
+            <option value="Packaging">Packaging</option>
+            <option value="Tools">Tools &amp; Equipment</option>
+            <option value="Marketing">Marketing &amp; Ads</option>
+            <option value="Software" selected>Software / Subscriptions</option>
+            <option value="Home Office">Home Office</option>
+            <option value="Other">Other</option>
+          </select>
+          <input type="number" id="recurringAmt" placeholder="Monthly amount $" min="0" step="0.01" />
+        </div>
+        <div class="form-row">
+          <input type="text" id="recurringDesc" placeholder="Description (e.g. Canva Pro)" />
+          <input type="month" id="recurringStart" />
+        </div>
+        <div class="recurring-form-footer">
+          <button class="btn btn-primary" onclick="addRecurring()">+ Add Recurring</button>
+          <button class="btn btn-apply" onclick="applyRecurring()">Apply to Year</button>
+          <span class="recurring-hint" id="recurringHint"></span>
+        </div>
+      </div>
+      <div class="entries" id="recurringList">
+        <div class="empty-state">No recurring expenses set up yet</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Mileage Tracker -->
   <div class="mileage-section">
     <div class="section">

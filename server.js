@@ -50,6 +50,15 @@ db.exec(`
     rate  REAL NOT NULL DEFAULT 0.725
   );
 
+  CREATE TABLE IF NOT EXISTS recurring_expenses (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    cat        TEXT,
+    desc       TEXT,
+    amount     REAL NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date   TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS users (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
@@ -239,9 +248,11 @@ const stmts = {
   allExpenses:   db.prepare('SELECT id, date, cat, desc, amount FROM expenses ORDER BY date, id'),
   allMileage:    db.prepare('SELECT id, date, desc, miles, rate FROM mileage ORDER BY date, id'),
   allSettings:   db.prepare('SELECT key, value FROM settings'),
+  allRecurring:  db.prepare('SELECT id, cat, desc, amount, start_date, end_date FROM recurring_expenses ORDER BY start_date, id'),
   insertIncome:  db.prepare('INSERT INTO income (date, desc, amount) VALUES (?, ?, ?)'),
   insertExpense: db.prepare('INSERT INTO expenses (date, cat, desc, amount) VALUES (?, ?, ?, ?)'),
   insertMileage: db.prepare('INSERT INTO mileage (date, desc, miles, rate) VALUES (?, ?, ?, ?)'),
+  insertRecurring: db.prepare('INSERT INTO recurring_expenses (cat, desc, amount, start_date, end_date) VALUES (?, ?, ?, ?, ?)'),
   deleteIncome:  db.prepare('DELETE FROM income WHERE id = ?'),
   deleteExpense: db.prepare('DELETE FROM expenses WHERE id = ?'),
   deleteMileage: db.prepare('DELETE FROM mileage WHERE id = ?'),
@@ -253,12 +264,14 @@ app.get('/api/data', requireAuth, (req, res) => {
   const income   = stmts.allIncome.all();
   const expenses = stmts.allExpenses.all();
   const mileage  = stmts.allMileage.all();
+  const recurring = stmts.allRecurring.all();
   const settings = Object.fromEntries(stmts.allSettings.all().map(r => [r.key, r.value]));
 
   res.json({
     income,
     expenses,
     mileage,
+    recurringExpenses: recurring,
     federalRate: parseFloat(settings.federalRate ?? 12),
     seRate:      parseFloat(settings.seRate ?? 15.3),
     setAside:    parseFloat(settings.setAside ?? 0),
@@ -288,6 +301,11 @@ app.post('/api/data', requireAuth, (req, res) => {
       stmts.insertMileage.run(e.date || null, e.desc || null, parseFloat(e.miles) || 0, parseFloat(e.rate) || 0.725);
     }
 
+    db.exec('DELETE FROM recurring_expenses');
+    for (const e of (body.recurringExpenses || [])) {
+      stmts.insertRecurring.run(e.cat || null, e.desc || null, parseFloat(e.amount) || 0, e.start_date || null, e.end_date || null);
+    }
+
     stmts.upsertSetting.run('federalRate', String(body.federalRate ?? 12));
     stmts.upsertSetting.run('seRate',      String(body.seRate ?? 15.3));
     stmts.upsertSetting.run('setAside',    String(body.setAside ?? 0));
@@ -300,12 +318,14 @@ app.post('/api/data', requireAuth, (req, res) => {
     const income   = stmts.allIncome.all();
     const expenses = stmts.allExpenses.all();
     const mileage  = stmts.allMileage.all();
+    const recurring = stmts.allRecurring.all();
     const settings = Object.fromEntries(stmts.allSettings.all().map(r => [r.key, r.value]));
     res.json({
       ok: true,
       income,
       expenses,
       mileage,
+      recurringExpenses: recurring,
       federalRate: parseFloat(settings.federalRate ?? 12),
       seRate:      parseFloat(settings.seRate ?? 15.3),
       setAside:    parseFloat(settings.setAside ?? 0),
@@ -321,6 +341,7 @@ app.get('/api/backup', requireAuth, (req, res) => {
   const income   = stmts.allIncome.all();
   const expenses = stmts.allExpenses.all();
   const mileage  = stmts.allMileage.all();
+  const recurring = stmts.allRecurring.all();
   const settings = Object.fromEntries(stmts.allSettings.all().map(r => [r.key, r.value]));
 
   const backup = {
@@ -329,6 +350,7 @@ app.get('/api/backup', requireAuth, (req, res) => {
     income,
     expenses,
     mileage,
+    recurringExpenses: recurring,
     settings,
   };
 
@@ -357,6 +379,11 @@ app.post('/api/restore', requireAuth, (req, res) => {
     db.exec('DELETE FROM mileage');
     for (const e of (body.mileage || [])) {
       stmts.insertMileage.run(e.date || null, e.desc || null, parseFloat(e.miles) || 0, parseFloat(e.rate) || 0.725);
+    }
+
+    db.exec('DELETE FROM recurring_expenses');
+    for (const e of (body.recurringExpenses || [])) {
+      stmts.insertRecurring.run(e.cat || null, e.desc || null, parseFloat(e.amount) || 0, e.start_date || null, e.end_date || null);
     }
 
     if (body.settings) {
