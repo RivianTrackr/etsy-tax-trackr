@@ -14,7 +14,7 @@ A self-hosted tax tracking app for Etsy sellers. Track income, deductions, milea
 
 ### Mileage Tracker
 - Log business trips with date, destination, and miles driven
-- Automatic IRS mileage rate deduction calculation (default $0.70/mile)
+- Automatic IRS mileage rate deduction calculation (default $0.725/mile for 2026)
 - Configurable rate per entry
 
 ### Tax Calculations
