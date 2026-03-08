@@ -211,9 +211,9 @@ migrateFromJson();
 
 // ── Prepared statements ─────────────────────────────────────────────────
 const stmts = {
-  allIncome:     db.prepare('SELECT id, date, desc, amount FROM income ORDER BY id'),
-  allExpenses:   db.prepare('SELECT id, date, cat, desc, amount FROM expenses ORDER BY id'),
-  allMileage:    db.prepare('SELECT id, date, desc, miles, rate FROM mileage ORDER BY id'),
+  allIncome:     db.prepare('SELECT id, date, desc, amount FROM income ORDER BY date, id'),
+  allExpenses:   db.prepare('SELECT id, date, cat, desc, amount FROM expenses ORDER BY date, id'),
+  allMileage:    db.prepare('SELECT id, date, desc, miles, rate FROM mileage ORDER BY date, id'),
   allSettings:   db.prepare('SELECT key, value FROM settings'),
   insertIncome:  db.prepare('INSERT INTO income (date, desc, amount) VALUES (?, ?, ?)'),
   insertExpense: db.prepare('INSERT INTO expenses (date, cat, desc, amount) VALUES (?, ?, ?, ?)'),
