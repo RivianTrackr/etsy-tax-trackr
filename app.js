@@ -19,7 +19,6 @@ async function loadData() {
     }
     if (res.ok) {
       data = await res.json();
-      console.log('[loadData] fetched from server — mileage:', data.mileage?.length);
       migrateData();
       populateYearSelector();
       render();
@@ -54,35 +53,23 @@ function migrateData() {
 }
 
 async function save() {
-  console.log('[save] start — mileage entries:', data.mileage.length, data.mileage.map(e => e.desc));
   localStorage.setItem('etsyTaxData', JSON.stringify(data));
   try {
-    const body = JSON.stringify(data);
-    console.log('[save] POST body mileage count:', JSON.parse(body).mileage.length);
     const res = await fetch(BASE + '/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body,
+      body: JSON.stringify(data),
     });
-    console.log('[save] POST response:', res.status, res.ok);
     if (res.ok) {
-      // Reload to pick up server-assigned IDs
-      const fresh = await fetch(BASE + '/api/data', { cache: 'no-store' });
-      console.log('[save] GET response:', fresh.status, fresh.ok);
-      if (fresh.ok) {
-        const freshData = await fresh.json();
-        console.log('[save] GET mileage count:', freshData.mileage?.length, freshData.mileage?.map(e => e.desc));
-        data = freshData;
-        migrateData();
-        console.log('[save] after migrateData — mileage:', data.mileage.length);
-      }
+      // POST response includes saved data with server-assigned IDs
+      data = await res.json();
+      migrateData();
     } else {
       console.error('Save failed:', res.status, await res.text().catch(() => ''));
     }
   } catch (e) {
     console.warn('Save offline, using localStorage fallback:', e.message);
   }
-  console.log('[save] end — mileage entries:', data.mileage.length);
 }
 
 // ── Year helpers ──────────────────────────────────────────────────────────
@@ -454,12 +441,10 @@ async function addMileage() {
     if (!miles || miles <= 0) { alert('Please enter valid miles.'); return; }
     const rate = parseFloat(data.mileageRate) || 0.70;
     data.mileage.push({ date, desc, miles, rate });
-    console.log('[addMileage] after push — mileage entries:', data.mileage.length);
     document.getElementById('mileageDesc').value  = '';
     document.getElementById('mileageMiles').value = '';
     document.getElementById('mileageDate').value  = new Date().toISOString().split('T')[0];
     await save();
-    console.log('[addMileage] after save — mileage entries:', data.mileage.length);
     populateYearSelector();
     render();
     console.log('Mileage added successfully:', { date, desc, miles, rate }, 'Total entries:', data.mileage.length);
