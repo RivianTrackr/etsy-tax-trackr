@@ -82,17 +82,24 @@
     <div class="tax-rate-row">
       <div class="rate-info">
         <label for="seRate">Self-Employment Tax Rate</label>
-        <span class="rate-hint">SE tax is 15.3% (Social Security + Medicare). Fixed unless you adjust.</span>
+        <span class="rate-hint">15.3% = 12.4% SS (up to $184,500) + 2.9% Medicare. +0.9% Medicare above $200k.</span>
       </div>
       <input type="range" id="seRate" min="0" max="20" value="15.3" step="0.1" oninput="updateSeRate(this.value)">
       <span class="rate-val" id="seRateDisplay">15.3%</span>
     </div>
     <div class="tax-rate-total">
       <div class="rate-breakdown">
-        <span>Federal: <strong id="federalTaxBreakdown">$0.00</strong></span>
         <span>SE Tax: <strong id="seTaxBreakdown">$0.00</strong></span>
+        <span class="rate-detail">Social Security (12.4%): <span id="ssTaxDetail">$0.00</span></span>
+        <span class="rate-detail">Medicare (2.9%+): <span id="medicareTaxDetail">$0.00</span></span>
+        <span class="rate-detail">&frac12; SE deduction: &minus;<span id="seDeductionDisplay">$0.00</span></span>
       </div>
-      <div class="rate-total-label">Total withholding rate: <span id="totalRateDisplay">27.3%</span></div>
+      <div class="rate-breakdown">
+        <span>Federal: <strong id="federalTaxBreakdown">$0.00</strong></span>
+        <span class="rate-detail">QBI deduction (20%): &minus;<span id="qbiDeductionDisplay">$0.00</span></span>
+        <span class="rate-detail">Taxable income: <span id="federalTaxableDisplay">$0.00</span></span>
+      </div>
+      <div class="rate-total-label">Combined rate: <span id="totalRateDisplay">27.3%</span></div>
     </div>
   </div>
 
