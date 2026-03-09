@@ -16,6 +16,10 @@
     <h1 id="dashboardTitle">Etsy Tax Tracker</h1>
     <p>Log your weekly Etsy payouts &amp; deductible expenses &mdash; your withholding adjusts automatically</p>
     <div class="header-controls">
+      <div class="year-selector" id="shopSelectorWrap" style="display:none">
+        <label for="shopSelect">Shop:</label>
+        <select id="shopSelect" onchange="changeShop(this.value)"></select>
+      </div>
       <div class="year-selector">
         <label for="yearSelect">Tax Year:</label>
         <select id="yearSelect" onchange="changeYear(this.value)"></select>
