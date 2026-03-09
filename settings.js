@@ -55,6 +55,10 @@ function migrateData() {
   data.taxYear = data.taxYear ?? '';
   data.csvImportExport = data.csvImportExport ?? false;
   data.shops = data.shops || [];
+  // Seed default shop from businessName on first load
+  if (data.shops.length === 0 && data.businessName) {
+    data.shops = [data.businessName];
+  }
 }
 
 let dirty = false;
@@ -215,11 +219,6 @@ function renderShops() {
   const container = document.getElementById('shopsList');
   if (!container) return;
 
-  // Seed with businessName as default shop if no shops exist yet
-  if ((!data.shops || data.shops.length === 0) && data.businessName) {
-    data.shops = [data.businessName];
-  }
-
   if (!data.shops || data.shops.length === 0) {
     container.innerHTML = '<div class="empty-state">No shops added yet.</div>';
     return;
@@ -245,6 +244,7 @@ function addShop() {
   input.value = '';
   renderShops();
   markDirty();
+  save();
 }
 
 function removeShop(index) {
@@ -252,6 +252,7 @@ function removeShop(index) {
   data.shops.splice(index, 1);
   renderShops();
   markDirty();
+  save();
 }
 
 function escapeHtml(str) {
