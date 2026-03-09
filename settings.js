@@ -214,14 +214,21 @@ function updateTaxYear(val) {
 function renderShops() {
   const container = document.getElementById('shopsList');
   if (!container) return;
+
+  // Seed with businessName as default shop if no shops exist yet
+  if ((!data.shops || data.shops.length === 0) && data.businessName) {
+    data.shops = [data.businessName];
+  }
+
   if (!data.shops || data.shops.length === 0) {
-    container.innerHTML = '<p class="settings-field-hint" style="opacity:0.6">No shops added yet.</p>';
+    container.innerHTML = '<div class="empty-state">No shops added yet.</div>';
     return;
   }
   container.innerHTML = data.shops.map((shop, i) => `
-    <div class="shop-row">
-      <span class="shop-name">${escapeHtml(shop)}${i === 0 ? ' <span class="badge income" style="font-size:0.65rem;padding:0.1rem 0.4rem">default</span>' : ''}</span>
-      <button class="btn-delete-shop" onclick="removeShop(${i})" title="Remove shop">&times;</button>
+    <div class="entry-item">
+      <span class="entry-desc">${escapeHtml(shop)}</span>
+      ${i === 0 ? '<span class="badge income">default</span>' : ''}
+      <button class="entry-del" onclick="removeShop(${i})" title="Remove shop">&times;</button>
     </div>
   `).join('');
 }

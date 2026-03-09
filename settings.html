@@ -72,12 +72,16 @@
         <h2>Etsy Shops</h2>
         <span class="badge income">Multi-shop support</span>
       </div>
-      <div class="shops-body">
-        <p class="settings-field-hint" style="margin-bottom:0.75rem">Track income &amp; expenses across multiple Etsy shops. The first shop is used as the default.</p>
-        <div id="shopsList"></div>
-        <div class="shop-add-row">
-          <input type="text" id="newShopName" placeholder="Shop name" class="shop-input" />
-          <button class="btn btn-primary btn-sm" onclick="addShop()">+ Add Shop</button>
+      <div class="general-settings-body">
+        <div class="settings-field">
+          <span class="settings-field-hint">Track income &amp; expenses across multiple Etsy shops. The first shop is used as the default.</span>
+        </div>
+        <div id="shopsList" class="entries"></div>
+        <div class="entry-form">
+          <div class="form-row">
+            <input type="text" id="newShopName" placeholder="Shop name" />
+            <button class="btn btn-primary" onclick="addShop()">+ Add Shop</button>
+          </div>
         </div>
       </div>
     </div>
@@ -162,11 +166,17 @@
             <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreBackup(this)" />
           </div>
         </div>
-        <hr class="backup-divider" />
-        <div class="section-header" style="margin-top:1rem">
-          <h3>CSV Import / Export</h3>
-        </div>
-        <p class="settings-field-hint" style="margin-bottom:0.75rem">Export your data as CSV files or import from Etsy&rsquo;s CSV payment reports.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV Import / Export -->
+  <div class="settings-group">
+    <div class="section">
+      <div class="section-header">
+        <h2>CSV Import / Export</h2>
+      </div>
+      <div class="backup-body">
         <div class="backup-actions">
           <div class="backup-item">
             <p class="backup-desc">Export income, expenses, and mileage as separate CSV files.</p>
