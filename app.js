@@ -1,6 +1,6 @@
 // ── Data ─────────────────────────────────────────────────────────────────
 const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(index\.html)?$/, '');
-const DEFAULTS = { income: [], expenses: [], mileage: [], recurringExpenses: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725, stateRate: 0, businessName: '', filingStatus: 'single', defaultCategory: 'Supplies' };
+const DEFAULTS = { income: [], expenses: [], mileage: [], recurringExpenses: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725, stateRate: 0, businessName: '', filingStatus: 'single', defaultCategory: 'Supplies', taxYear: '', shops: [] };
 let data = { ...DEFAULTS };
 let selectedYear = new Date().getFullYear();
 
@@ -99,14 +99,21 @@ function getYearsFromData() {
   return [...years].filter(y => y > 2000).sort((a, b) => b - a);
 }
 
+let yearManuallyChanged = false;
+
 function populateYearSelector() {
   const sel = document.getElementById('yearSelect');
   const years = getYearsFromData();
+  // On first load, use the taxYear setting if configured
+  if (!yearManuallyChanged && data.taxYear && years.includes(parseInt(data.taxYear))) {
+    selectedYear = parseInt(data.taxYear);
+  }
   if (!years.includes(selectedYear)) selectedYear = years[0];
   sel.innerHTML = years.map(y => `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}</option>`).join('');
 }
 
 function changeYear(y) {
+  yearManuallyChanged = true;
   selectedYear = parseInt(y);
   render();
 }

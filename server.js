@@ -280,6 +280,9 @@ app.get('/api/data', requireAuth, (req, res) => {
     businessName: settings.businessName ?? '',
     filingStatus: settings.filingStatus ?? 'single',
     defaultCategory: settings.defaultCategory ?? 'Supplies',
+    taxYear: settings.taxYear ?? '',
+    csvImportExport: settings.csvImportExport === 'true',
+    shops: JSON.parse(settings.shops || '[]'),
   });
 });
 
@@ -318,6 +321,9 @@ app.post('/api/data', requireAuth, (req, res) => {
     if (body.businessName !== undefined) stmts.upsertSetting.run('businessName', String(body.businessName ?? ''));
     if (body.filingStatus !== undefined) stmts.upsertSetting.run('filingStatus', String(body.filingStatus ?? 'single'));
     if (body.defaultCategory !== undefined) stmts.upsertSetting.run('defaultCategory', String(body.defaultCategory ?? 'Supplies'));
+    if (body.taxYear !== undefined) stmts.upsertSetting.run('taxYear', String(body.taxYear ?? ''));
+    if (body.csvImportExport !== undefined) stmts.upsertSetting.run('csvImportExport', String(!!body.csvImportExport));
+    if (body.shops !== undefined) stmts.upsertSetting.run('shops', JSON.stringify(body.shops || []));
   });
 
   try {
@@ -343,6 +349,9 @@ app.post('/api/data', requireAuth, (req, res) => {
       businessName: settings.businessName ?? '',
       filingStatus: settings.filingStatus ?? 'single',
       defaultCategory: settings.defaultCategory ?? 'Supplies',
+      taxYear: settings.taxYear ?? '',
+      csvImportExport: settings.csvImportExport === 'true',
+      shops: JSON.parse(settings.shops || '[]'),
     });
   } catch (err) {
     console.error('Save transaction failed:', err);

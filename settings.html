@@ -56,6 +56,29 @@
             <option value="Other">Other</option>
           </select>
         </div>
+        <div class="settings-field">
+          <label for="taxYear">Default Tax Year</label>
+          <span class="settings-field-hint">Year shown on dashboard load &mdash; leave blank to use the current year</span>
+          <input type="number" id="taxYear" placeholder="e.g. 2026" min="2020" max="2099" step="1" class="settings-input-small" oninput="updateTaxYear(this.value)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Etsy Shops -->
+  <div class="settings-group">
+    <div class="section">
+      <div class="section-header">
+        <h2>Etsy Shops</h2>
+        <span class="badge income">Multi-shop support</span>
+      </div>
+      <div class="shops-body">
+        <p class="settings-field-hint" style="margin-bottom:0.75rem">Track income &amp; expenses across multiple Etsy shops. The first shop is used as the default.</p>
+        <div id="shopsList"></div>
+        <div class="shop-add-row">
+          <input type="text" id="newShopName" placeholder="Shop name" class="shop-input" />
+          <button class="btn btn-primary btn-sm" onclick="addShop()">+ Add Shop</button>
+        </div>
       </div>
     </div>
   </div>
@@ -137,6 +160,22 @@
             <p class="backup-desc">Restore data from a previously downloaded backup file.</p>
             <button class="btn btn-restore" onclick="document.getElementById('restoreFile').click()">Restore from Backup</button>
             <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreBackup(this)" />
+          </div>
+        </div>
+        <hr class="backup-divider" />
+        <div class="section-header" style="margin-top:1rem">
+          <h3>CSV Import / Export</h3>
+        </div>
+        <p class="settings-field-hint" style="margin-bottom:0.75rem">Export your data as CSV files or import from Etsy&rsquo;s CSV payment reports.</p>
+        <div class="backup-actions">
+          <div class="backup-item">
+            <p class="backup-desc">Export income, expenses, and mileage as separate CSV files.</p>
+            <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+          </div>
+          <div class="backup-item">
+            <p class="backup-desc">Import transactions from an Etsy CSV payment report or custom CSV.</p>
+            <button class="btn btn-restore" onclick="document.getElementById('csvImportFile').click()">Import CSV</button>
+            <input type="file" id="csvImportFile" accept=".csv" style="display:none" onchange="importCSV(this)" />
           </div>
         </div>
       </div>

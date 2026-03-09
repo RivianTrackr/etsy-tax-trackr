@@ -1,6 +1,6 @@
 // ── Settings Page Logic ──────────────────────────────────────────────────
 const BASE = window.__BASE_PATH__ || window.location.pathname.replace(/\/(settings\.html)?$/, '');
-const DEFAULTS = { income: [], expenses: [], mileage: [], recurringExpenses: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725, stateRate: 0, businessName: '', filingStatus: 'single', defaultCategory: 'Supplies' };
+const DEFAULTS = { income: [], expenses: [], mileage: [], recurringExpenses: [], federalRate: 12, seRate: 15.3, setAside: 0, mileageRate: 0.725, stateRate: 0, businessName: '', filingStatus: 'single', defaultCategory: 'Supplies', taxYear: '', csvImportExport: false, shops: [] };
 let data = { ...DEFAULTS };
 
 // 2026 IRS thresholds
@@ -52,6 +52,9 @@ function migrateData() {
   data.businessName = data.businessName ?? '';
   data.filingStatus = data.filingStatus ?? 'single';
   data.defaultCategory = data.defaultCategory ?? 'Supplies';
+  data.taxYear = data.taxYear ?? '';
+  data.csvImportExport = data.csvImportExport ?? false;
+  data.shops = data.shops || [];
 }
 
 let dirty = false;
@@ -155,6 +158,11 @@ function render() {
   if (document.activeElement !== nameInput) nameInput.value = data.businessName || '';
   document.getElementById('filingStatus').value    = data.filingStatus || 'single';
   document.getElementById('defaultCategory').value = data.defaultCategory || 'Supplies';
+  const taxYearInput = document.getElementById('taxYear');
+  if (document.activeElement !== taxYearInput) taxYearInput.value = data.taxYear || '';
+
+  // Shops
+  renderShops();
 
   // Tax rates
   document.getElementById('federalRate').value = data.federalRate;
@@ -196,6 +204,196 @@ function updateStateRate(val)     { data.stateRate   = parseFloat(val) || 0; ren
 function updateBusinessName(val)  { data.businessName = val.trim(); markDirty(); }
 function updateFilingStatus(val)  { data.filingStatus = val; markDirty(); }
 function updateDefaultCategory(val) { data.defaultCategory = val; markDirty(); }
+function updateTaxYear(val) {
+  const y = val ? parseInt(val) : '';
+  data.taxYear = y && y >= 2020 && y <= 2099 ? y : '';
+  markDirty();
+}
+
+// ── Shops ─────────────────────────────────────────────────────────────────
+function renderShops() {
+  const container = document.getElementById('shopsList');
+  if (!container) return;
+  if (!data.shops || data.shops.length === 0) {
+    container.innerHTML = '<p class="settings-field-hint" style="opacity:0.6">No shops added yet.</p>';
+    return;
+  }
+  container.innerHTML = data.shops.map((shop, i) => `
+    <div class="shop-row">
+      <span class="shop-name">${escapeHtml(shop)}${i === 0 ? ' <span class="badge income" style="font-size:0.65rem;padding:0.1rem 0.4rem">default</span>' : ''}</span>
+      <button class="btn-delete-shop" onclick="removeShop(${i})" title="Remove shop">&times;</button>
+    </div>
+  `).join('');
+}
+
+function addShop() {
+  const input = document.getElementById('newShopName');
+  const name = (input.value || '').trim();
+  if (!name) return;
+  if (data.shops.some(s => s.toLowerCase() === name.toLowerCase())) {
+    alert('Shop already exists.');
+    return;
+  }
+  data.shops.push(name);
+  input.value = '';
+  renderShops();
+  markDirty();
+}
+
+function removeShop(index) {
+  if (!confirm(`Remove "${data.shops[index]}"?`)) return;
+  data.shops.splice(index, 1);
+  renderShops();
+  markDirty();
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ── CSV Export ────────────────────────────────────────────────────────────
+function exportCSV() {
+  function toCsv(headers, rows) {
+    const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    return [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+  }
+
+  const incomeCsv = toCsv(['Date', 'Description', 'Amount'],
+    data.income.map(e => [e.date, e.desc, e.amount]));
+
+  const expenseCsv = toCsv(['Date', 'Category', 'Description', 'Amount'],
+    data.expenses.map(e => [e.date, e.cat, e.desc, e.amount]));
+
+  const mileageCsv = toCsv(['Date', 'Description', 'Miles', 'Rate'],
+    data.mileage.map(e => [e.date, e.desc, e.miles, e.rate]));
+
+  // Download as a zip-like bundle: 3 separate downloads
+  downloadFile('income.csv', incomeCsv);
+  setTimeout(() => downloadFile('expenses.csv', expenseCsv), 200);
+  setTimeout(() => downloadFile('mileage.csv', mileageCsv), 400);
+}
+
+function downloadFile(filename, content) {
+  const blob = new Blob([content], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── CSV Import ────────────────────────────────────────────────────────────
+async function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if (rows.length < 2) { alert('CSV file is empty or has no data rows.'); input.value = ''; return; }
+
+    const headers = rows[0].map(h => h.toLowerCase().trim());
+    const dataRows = rows.slice(1).filter(r => r.some(c => c.trim()));
+
+    // Detect format: Etsy payments CSV or our own export
+    const imported = detectAndImport(headers, dataRows);
+
+    if (imported.income > 0 || imported.expenses > 0 || imported.mileage > 0) {
+      alert(`Imported: ${imported.income} income, ${imported.expenses} expense, ${imported.mileage} mileage entries.`);
+      render();
+      markDirty();
+    } else {
+      alert('No recognizable data found. Expected columns: Date, Description, Amount (income) or Date, Category, Description, Amount (expenses).');
+    }
+  } catch (e) {
+    alert('Failed to parse CSV: ' + e.message);
+  }
+
+  input.value = '';
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let current = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { field += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { current.push(field); field = ''; }
+      else if (ch === '\n' || (ch === '\r' && text[i + 1] === '\n')) {
+        current.push(field); field = '';
+        if (current.length > 1 || current[0].trim()) rows.push(current);
+        current = [];
+        if (ch === '\r') i++;
+      } else { field += ch; }
+    }
+  }
+  if (field || current.length) { current.push(field); rows.push(current); }
+  return rows;
+}
+
+function detectAndImport(headers, rows) {
+  const result = { income: 0, expenses: 0, mileage: 0 };
+
+  // Check for Etsy-style: "date", "type", "title", "amount"
+  const dateIdx = headers.findIndex(h => h === 'date');
+  const amountIdx = headers.findIndex(h => h === 'amount' || h === 'net');
+  const typeIdx = headers.findIndex(h => h === 'type' || h === 'category' || h === 'cat');
+  const descIdx = headers.findIndex(h => h === 'description' || h === 'desc' || h === 'title');
+  const milesIdx = headers.findIndex(h => h === 'miles');
+
+  if (dateIdx === -1 || amountIdx === -1) return result;
+
+  for (const row of rows) {
+    const date = (row[dateIdx] || '').trim();
+    const amount = parseFloat((row[amountIdx] || '0').replace(/[$,]/g, ''));
+    const desc = (row[descIdx] ?? '').trim();
+    const type = (row[typeIdx] ?? '').trim().toLowerCase();
+
+    if (!date || isNaN(amount)) continue;
+
+    // Normalize date to YYYY-MM-DD if possible
+    const normalDate = normalizeDate(date);
+
+    if (milesIdx !== -1) {
+      const miles = parseFloat(row[milesIdx] || 0);
+      if (miles > 0) {
+        data.mileage.push({ date: normalDate, desc, miles, rate: data.mileageRate || 0.725 });
+        result.mileage++;
+        continue;
+      }
+    }
+
+    if (type === 'expense' || type === 'fee' || type === 'shipping' || amount < 0) {
+      const cat = type && type !== 'expense' ? type.charAt(0).toUpperCase() + type.slice(1) : (data.defaultCategory || 'Other');
+      data.expenses.push({ date: normalDate, cat, desc, amount: Math.abs(amount) });
+      result.expenses++;
+    } else {
+      data.income.push({ date: normalDate, desc, amount: Math.abs(amount) });
+      result.income++;
+    }
+  }
+
+  return result;
+}
+
+function normalizeDate(dateStr) {
+  // Try ISO format first
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.slice(0, 10);
+  // Try MM/DD/YYYY
+  const parts = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (parts) return `${parts[3]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+  return dateStr;
+}
 
 // ── Backup & Restore ─────────────────────────────────────────────────────
 function downloadBackup() {
