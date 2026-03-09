@@ -136,20 +136,28 @@ function populateShopSelector() {
   }
 
   wrap.style.display = '';
-  if (!selectedShop || !shops.includes(selectedShop)) selectedShop = shops[0];
-  sel.innerHTML = shops.map(s =>
-    `<option value="${esc(s)}" ${s === selectedShop ? 'selected' : ''}>${esc(s)}</option>`
-  ).join('');
+  if (!selectedShop && selectedShop !== '') selectedShop = shops[0];
+  if (selectedShop && !shops.includes(selectedShop)) selectedShop = shops[0];
+  sel.innerHTML = `<option value="" ${selectedShop === '' ? 'selected' : ''}>All Shops</option>` +
+    shops.map(s =>
+      `<option value="${esc(s)}" ${s === selectedShop ? 'selected' : ''}>${esc(s)}</option>`
+    ).join('');
 }
 
 function changeShop(name) {
   selectedShop = name;
-  const titleEl = document.getElementById('dashboardTitle');
-  if (titleEl) titleEl.textContent = selectedShop || data.businessName || 'Tax Tracker';
+  render();
+}
+
+function filterByShop(items) {
+  const shops = data.shops || [];
+  if (shops.length < 2 || !selectedShop) return items;
+  const defaultShop = shops[0] || '';
+  return items.filter(e => (e.shop || defaultShop) === selectedShop);
 }
 
 function filterByYear(items) {
-  return items
+  return filterByShop(items)
     .filter(e => e.date && parseInt(e.date.slice(0, 4)) === selectedYear)
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 }
@@ -511,7 +519,7 @@ async function addIncome() {
   const desc   = document.getElementById('incomeDesc').value.trim() || 'Payout';
   const amount = parseFloat(document.getElementById('incomeAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
-  data.income.push({ date, desc, amount });
+  data.income.push({ date, desc, amount, shop: selectedShop });
   document.getElementById('incomeDesc').value = '';
   document.getElementById('incomeAmt').value  = '';
   await save(); populateYearSelector(); render();
@@ -524,7 +532,7 @@ async function addExpense() {
   const desc   = document.getElementById('expenseDesc').value.trim() || cat;
   const amount = parseFloat(document.getElementById('expenseAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
-  data.expenses.push({ date, cat, desc, amount });
+  data.expenses.push({ date, cat, desc, amount, shop: selectedShop });
   document.getElementById('expenseDesc').value = '';
   document.getElementById('expenseAmt').value  = '';
   document.getElementById('expenseCat')._userChanged = false;
@@ -539,7 +547,7 @@ async function addMileage() {
     const miles = parseFloat(document.getElementById('mileageMiles').value);
     if (!miles || miles <= 0) { alert('Please enter valid miles.'); return; }
     const rate = parseFloat(data.mileageRate) || 0.725;
-    data.mileage.push({ date, desc, miles, rate });
+    data.mileage.push({ date, desc, miles, rate, shop: selectedShop });
     document.getElementById('mileageDesc').value  = '';
     document.getElementById('mileageMiles').value = '';
     document.getElementById('mileageDate').value  = new Date().toISOString().split('T')[0];
@@ -556,7 +564,7 @@ async function addMileage() {
 function renderRecurringList() {
   const el = document.getElementById('recurringList');
   if (!el) return;
-  const items = data.recurringExpenses || [];
+  const items = filterByShop(data.recurringExpenses || []);
   if (!items.length) {
     el.innerHTML = '<div class="empty-state">No recurring expenses set up yet</div>';
     document.getElementById('recurringHint').textContent = '';
@@ -592,7 +600,7 @@ async function addRecurring() {
   if (!startInput) { alert('Please select a start month.'); return; }
   if (!amount || amount <= 0) { alert('Please enter a valid monthly amount.'); return; }
   const start_date = startInput; // YYYY-MM format
-  data.recurringExpenses.push({ cat, desc, amount, start_date, end_date: null });
+  data.recurringExpenses.push({ cat, desc, amount, start_date, end_date: null, shop: selectedShop });
   document.getElementById('recurringDesc').value = '';
   document.getElementById('recurringAmt').value  = '';
   await save(); populateYearSelector(); render();
@@ -656,7 +664,7 @@ async function applyRecurring() {
         e.date === dateStr && e.desc === r.desc && Math.abs((parseFloat(e.amount) || 0) - r.amount) < 0.01
       );
       if (!exists) {
-        data.expenses.push({ date: dateStr, cat: r.cat, desc: r.desc, amount: r.amount });
+        data.expenses.push({ date: dateStr, cat: r.cat, desc: r.desc, amount: r.amount, shop: r.shop || selectedShop });
         added++;
       }
     }
