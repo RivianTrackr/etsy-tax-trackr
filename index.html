@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Etsy Tax Tracker</title>
+  <title>Tax Tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -13,8 +13,8 @@
 
   <header>
     <div class="eyebrow">&#10022; Self-Employment Tax Tool</div>
-    <h1 id="dashboardTitle">Etsy Tax Tracker</h1>
-    <p>Log your weekly Etsy payouts &amp; deductible expenses &mdash; your withholding adjusts automatically</p>
+    <h1 id="dashboardTitle">Tax Tracker</h1>
+    <p>Log your weekly payouts &amp; deductible expenses &mdash; your withholding adjusts automatically</p>
     <div class="header-controls">
       <div class="year-selector" id="shopSelectorWrap" style="display:none">
         <label for="shopSelect">Shop:</label>
@@ -33,7 +33,7 @@
     <div class="card income">
       <div class="label">Total Payouts</div>
       <div class="amount" id="totalIncome">$0.00</div>
-      <div class="sub">net after Etsy fees</div>
+      <div class="sub">net after fees</div>
     </div>
     <div class="card expense">
       <div class="label">Deductions</div>
@@ -161,7 +161,7 @@
           <input type="number" id="recurringAmt" placeholder="Amount $ / mo" min="0" step="0.01" />
         </div>
         <div class="form-row">
-          <input type="text" id="recurringDesc" placeholder="Description (e.g. Canva Pro, Adobe, Etsy Plus)" style="grid-column: 1 / -1;" />
+          <input type="text" id="recurringDesc" placeholder="Description (e.g. Canva Pro, Adobe)" style="grid-column: 1 / -1;" />
         </div>
         <div class="recurring-form-footer">
           <button class="btn btn-primary" onclick="addRecurring()">+ Add Recurring</button>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Settings &mdash; Etsy Tax Tracker</title>
+  <title>Settings &mdash; Tax Tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -30,7 +30,7 @@
         <div class="settings-field">
           <label for="businessName">Dashboard Title</label>
           <span class="settings-field-hint">Personalize the heading on your dashboard (e.g. your shop name)</span>
-          <input type="text" id="businessName" placeholder="Etsy Tax Tracker" oninput="updateBusinessName(this.value)" />
+          <input type="text" id="businessName" placeholder="Tax Tracker" oninput="updateBusinessName(this.value)" />
         </div>
         <div class="settings-field">
           <label for="filingStatus">Filing Status</label>
@@ -65,16 +65,16 @@
     </div>
   </div>
 
-  <!-- Etsy Shops -->
+  <!-- Shops -->
   <div class="settings-group">
     <div class="section">
       <div class="section-header">
-        <h2>Etsy Shops</h2>
+        <h2>Shops</h2>
         <span class="badge income">Multi-shop support</span>
       </div>
       <div class="general-settings-body">
         <div class="settings-field">
-          <span class="settings-field-hint">Track income &amp; expenses across multiple Etsy shops. The first shop is used as the default.</span>
+          <span class="settings-field-hint">Track income &amp; expenses across multiple shops. The first shop is used as the default.</span>
         </div>
         <div id="shopsList" class="entries"></div>
         <div class="entry-form">
@@ -183,7 +183,7 @@
             <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
           </div>
           <div class="backup-item">
-            <p class="backup-desc">Import transactions from an Etsy CSV payment report or custom CSV.</p>
+            <p class="backup-desc">Import transactions from a CSV payment report or custom CSV.</p>
             <button class="btn btn-restore" onclick="document.getElementById('csvImportFile').click()">Import CSV</button>
             <input type="file" id="csvImportFile" accept=".csv" style="display:none" onchange="importCSV(this)" />
           </div>

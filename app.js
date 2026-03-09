@@ -145,7 +145,7 @@ function populateShopSelector() {
 function changeShop(name) {
   selectedShop = name;
   const titleEl = document.getElementById('dashboardTitle');
-  if (titleEl) titleEl.textContent = selectedShop || data.businessName || 'Etsy Tax Tracker';
+  if (titleEl) titleEl.textContent = selectedShop || data.businessName || 'Tax Tracker';
 }
 
 function filterByYear(items) {
@@ -254,7 +254,7 @@ function render() {
 
   // Apply shop name or business name to title
   const titleEl = document.getElementById('dashboardTitle');
-  if (titleEl) titleEl.textContent = selectedShop || data.businessName || 'Etsy Tax Tracker';
+  if (titleEl) titleEl.textContent = selectedShop || data.businessName || 'Tax Tracker';
 
   // Apply default category
   const catSelect = document.getElementById('expenseCat');
@@ -508,7 +508,7 @@ function renderCharts() {
 async function addIncome() {
   const date   = document.getElementById('incomeDate').value;
   if (!date) { alert('Please select a date.'); return; }
-  const desc   = document.getElementById('incomeDesc').value.trim() || 'Etsy Payout';
+  const desc   = document.getElementById('incomeDesc').value.trim() || 'Payout';
   const amount = parseFloat(document.getElementById('incomeAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
   data.income.push({ date, desc, amount });
