@@ -59,7 +59,7 @@
         <div class="settings-field">
           <label for="taxYear">Default Tax Year</label>
           <span class="settings-field-hint">Year shown on dashboard load &mdash; leave blank to use the current year</span>
-          <input type="number" id="taxYear" placeholder="e.g. 2026" min="2020" max="2099" step="1" class="settings-input-small" oninput="updateTaxYear(this.value)" />
+          <input type="text" id="taxYear" inputmode="numeric" pattern="[0-9]{4}" placeholder="e.g. 2026" maxlength="4" oninput="updateTaxYear(this.value)" />
         </div>
       </div>
     </div>
