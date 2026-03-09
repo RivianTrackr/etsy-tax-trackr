@@ -92,7 +92,20 @@ window.addEventListener('beforeunload', (e) => {
   if (dirty) { e.preventDefault(); e.returnValue = ''; }
 });
 
+let saveInFlight = false;
+let saveQueued = false;
+
 async function save() {
+  // Cancel any pending debounce — we're saving now
+  clearTimeout(debounceTimer);
+
+  // If a save is already in flight, queue a follow-up save instead
+  if (saveInFlight) {
+    saveQueued = true;
+    return;
+  }
+
+  saveInFlight = true;
   localStorage.setItem('etsyTaxData', JSON.stringify(data));
   try {
     const res = await fetch(BASE + '/api/data', {
@@ -105,8 +118,13 @@ async function save() {
       return;
     }
     if (res.ok) {
-      data = await res.json();
-      migrateData();
+      const saved = await res.json();
+      // Update server-managed data (IDs) but preserve local settings
+      // to avoid overwriting changes made while save was in flight
+      data.income = saved.income;
+      data.expenses = saved.expenses;
+      data.mileage = saved.mileage;
+      data.recurringExpenses = saved.recurringExpenses;
       showSaveStatus(true);
     } else {
       const errText = await res.text().catch(() => '');
@@ -116,6 +134,13 @@ async function save() {
   } catch (e) {
     console.error('Save error:', e);
     showSaveStatus(false, 'Server unreachable');
+  } finally {
+    saveInFlight = false;
+    // If changes were made during the save, save again
+    if (saveQueued) {
+      saveQueued = false;
+      save();
+    }
   }
 }
 
