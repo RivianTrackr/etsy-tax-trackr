@@ -21,6 +21,7 @@ async function loadData() {
       data = await res.json();
       migrateData();
       populateYearSelector();
+      populateShopSelector();
       render();
       return;
     }
@@ -34,6 +35,7 @@ async function loadData() {
     migrateData();
   }
   populateYearSelector();
+  populateShopSelector();
   render();
 }
 
@@ -116,6 +118,34 @@ function changeYear(y) {
   yearManuallyChanged = true;
   selectedYear = parseInt(y);
   render();
+}
+
+// ── Shop selector ────────────────────────────────────────────────────────
+let selectedShop = '';
+
+function populateShopSelector() {
+  const wrap = document.getElementById('shopSelectorWrap');
+  const sel = document.getElementById('shopSelect');
+  if (!wrap || !sel) return;
+
+  const shops = data.shops || [];
+  if (shops.length < 2) {
+    wrap.style.display = 'none';
+    selectedShop = shops[0] || '';
+    return;
+  }
+
+  wrap.style.display = '';
+  if (!selectedShop || !shops.includes(selectedShop)) selectedShop = shops[0];
+  sel.innerHTML = shops.map(s =>
+    `<option value="${esc(s)}" ${s === selectedShop ? 'selected' : ''}>${esc(s)}</option>`
+  ).join('');
+}
+
+function changeShop(name) {
+  selectedShop = name;
+  const titleEl = document.getElementById('dashboardTitle');
+  if (titleEl) titleEl.textContent = selectedShop || data.businessName || 'Tax Tracker';
 }
 
 function filterByYear(items) {
@@ -222,9 +252,9 @@ function getQuarters(year) {
 function render() {
   const { income, expenses, profit, tax, seTax, federalTax, mileageDeduct, qbiDeduction } = calcTotals();
 
-  // Apply business name to title
+  // Apply shop name or business name to title
   const titleEl = document.getElementById('dashboardTitle');
-  if (titleEl) titleEl.textContent = data.businessName || 'Etsy Tax Tracker';
+  if (titleEl) titleEl.textContent = selectedShop || data.businessName || 'Tax Tracker';
 
   // Apply default category
   const catSelect = document.getElementById('expenseCat');
@@ -478,7 +508,7 @@ function renderCharts() {
 async function addIncome() {
   const date   = document.getElementById('incomeDate').value;
   if (!date) { alert('Please select a date.'); return; }
-  const desc   = document.getElementById('incomeDesc').value.trim() || 'Etsy Payout';
+  const desc   = document.getElementById('incomeDesc').value.trim() || 'Payout';
   const amount = parseFloat(document.getElementById('incomeAmt').value);
   if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
   data.income.push({ date, desc, amount });

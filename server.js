@@ -377,7 +377,7 @@ app.get('/api/backup', requireAuth, (req, res) => {
     settings,
   };
 
-  res.setHeader('Content-Disposition', `attachment; filename="etsy-tax-backup-${new Date().toISOString().split('T')[0]}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="tax-backup-${new Date().toISOString().split('T')[0]}.json"`);
   res.setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(backup, null, 2));
 });
@@ -430,5 +430,5 @@ process.on('SIGINT',  () => { db.close(); process.exit(0); });
 process.on('SIGTERM', () => { db.close(); process.exit(0); });
 
 app.listen(PORT, () => {
-  console.log(`Etsy Tax Tracker running at http://localhost:${PORT}`);
+  console.log(`Tax Tracker running at http://localhost:${PORT}`);
 });
