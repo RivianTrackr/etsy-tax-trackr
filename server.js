@@ -79,7 +79,7 @@ app.use(session({
     maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
     httpOnly: true,
     sameSite: 'lax',
-    path: BASE_PATH || '/',
+    path: '/',
   },
 }));
 
@@ -186,7 +186,7 @@ router.post('/api/auth/login', (req, res) => {
 // Logout
 router.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => {
-    res.clearCookie('connect.sid', { path: BASE_PATH || '/' });
+    res.clearCookie('connect.sid');
     res.json({ ok: true });
   });
 });
