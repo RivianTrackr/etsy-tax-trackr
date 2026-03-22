@@ -11,6 +11,7 @@ const app      = express();
 const PORT     = process.env.PORT || 3000;
 const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/+$/, ''); // e.g. '/ashley'
 const DB_PATH  = path.join(__dirname, 'tax_data.db');
+const router   = express.Router();
 const OLD_JSON = path.join(__dirname, 'data.json');
 
 app.use(express.json({ limit: '10mb' }));
@@ -78,7 +79,7 @@ app.use(session({
     maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
     httpOnly: true,
     sameSite: 'lax',
-    path: '/',
+    path: BASE_PATH || '/',
   },
 }));
 
@@ -94,47 +95,47 @@ function requireAuth(req, res, next) {
 
 // ── Static files — login.html is public, index.html requires auth ───────
 // Inject BASE_PATH into HTML files so the frontend knows the mount point
-function serveHtmlWithBasePath(filePath, res) {
+function serveHtmlWithBasePath(filePath, req, res) {
   let html = fs.readFileSync(filePath, 'utf8');
-  html = html.replace('<head>', `<head>\n  <script>window.__BASE_PATH__ = '${BASE_PATH}';</script>`);
+  html = html.replace('<head>', `<head>\n  <script>window.__BASE_PATH__ = '${req.baseUrl}';</script>`);
   res.type('html').send(html);
 }
 
 // Serve login.html and its assets without auth
-app.get('/login.html', (req, res) => {
-  serveHtmlWithBasePath(path.join(__dirname, 'login.html'), res);
+router.get('/login.html', (req, res) => {
+  serveHtmlWithBasePath(path.join(__dirname, 'login.html'), req, res);
 });
 
 // Protect index.html — redirect to login if not authenticated
-app.get('/', (req, res) => {
+router.get('/', (req, res) => {
   if (!req.session || !req.session.userId) {
-    return res.redirect(BASE_PATH + '/login.html');
+    return res.redirect(req.baseUrl + '/login.html');
   }
-  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), res);
+  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), req, res);
 });
 
-app.get('/index.html', (req, res) => {
+router.get('/index.html', (req, res) => {
   if (!req.session || !req.session.userId) {
-    return res.redirect(BASE_PATH + '/login.html');
+    return res.redirect(req.baseUrl + '/login.html');
   }
-  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), res);
+  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), req, res);
 });
 
 // Settings page — protected
-app.get('/settings.html', (req, res) => {
+router.get('/settings.html', (req, res) => {
   if (!req.session || !req.session.userId) {
-    return res.redirect(BASE_PATH + '/login.html');
+    return res.redirect(req.baseUrl + '/login.html');
   }
-  serveHtmlWithBasePath(path.join(__dirname, 'settings.html'), res);
+  serveHtmlWithBasePath(path.join(__dirname, 'settings.html'), req, res);
 });
 
 // Static files (CSS, JS, fonts) — served to everyone
-app.use(express.static(__dirname));
+router.use(express.static(__dirname));
 
 // ── Auth API routes ─────────────────────────────────────────────────────
 
 // Check if setup is needed
-app.get('/api/auth/status', (req, res) => {
+router.get('/api/auth/status', (req, res) => {
   res.json({
     needsSetup: !hasUsers(),
     loggedIn: !!(req.session && req.session.userId),
@@ -142,7 +143,7 @@ app.get('/api/auth/status', (req, res) => {
 });
 
 // First-run setup — create initial user
-app.post('/api/auth/setup', (req, res) => {
+router.post('/api/auth/setup', (req, res) => {
   if (hasUsers()) {
     return res.status(403).json({ error: 'Setup already completed' });
   }
@@ -167,7 +168,7 @@ app.post('/api/auth/setup', (req, res) => {
 });
 
 // Login
-app.post('/api/auth/login', (req, res) => {
+router.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
@@ -183,9 +184,9 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // Logout
-app.post('/api/auth/logout', (req, res) => {
+router.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => {
-    res.clearCookie('connect.sid');
+    res.clearCookie('connect.sid', { path: BASE_PATH || '/' });
     res.json({ ok: true });
   });
 });
@@ -260,7 +261,7 @@ const stmts = {
 };
 
 // ── Protected API routes ────────────────────────────────────────────────
-app.get('/api/data', requireAuth, (req, res) => {
+router.get('/api/data', requireAuth, (req, res) => {
   const income   = stmts.allIncome.all();
   const expenses = stmts.allExpenses.all();
   const mileage  = stmts.allMileage.all();
@@ -286,7 +287,7 @@ app.get('/api/data', requireAuth, (req, res) => {
   });
 });
 
-app.post('/api/data', requireAuth, (req, res) => {
+router.post('/api/data', requireAuth, (req, res) => {
   const body = req.body;
   if (!body || typeof body !== 'object') {
     return res.status(400).json({ error: 'Invalid data' });
@@ -360,7 +361,7 @@ app.post('/api/data', requireAuth, (req, res) => {
 });
 
 // ── Backup & Restore ────────────────────────────────────────────────────
-app.get('/api/backup', requireAuth, (req, res) => {
+router.get('/api/backup', requireAuth, (req, res) => {
   const income   = stmts.allIncome.all();
   const expenses = stmts.allExpenses.all();
   const mileage  = stmts.allMileage.all();
@@ -382,7 +383,7 @@ app.get('/api/backup', requireAuth, (req, res) => {
   res.send(JSON.stringify(backup, null, 2));
 });
 
-app.post('/api/restore', requireAuth, (req, res) => {
+router.post('/api/restore', requireAuth, (req, res) => {
   const body = req.body;
   if (!body || typeof body !== 'object' || !body.version) {
     return res.status(400).json({ error: 'Invalid backup file format' });
@@ -424,6 +425,9 @@ app.post('/api/restore', requireAuth, (req, res) => {
     res.status(500).json({ error: 'Failed to restore backup' });
   }
 });
+
+// ── Mount router at BASE_PATH ─────────────────────────────────────────
+app.use(BASE_PATH || '/', router);
 
 // ── Graceful shutdown ───────────────────────────────────────────────────
 process.on('SIGINT',  () => { db.close(); process.exit(0); });
