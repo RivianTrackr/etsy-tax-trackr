@@ -95,38 +95,38 @@ function requireAuth(req, res, next) {
 
 // ── Static files — login.html is public, index.html requires auth ───────
 // Inject BASE_PATH into HTML files so the frontend knows the mount point
-function serveHtmlWithBasePath(filePath, req, res) {
+function serveHtmlWithBasePath(filePath, res) {
   let html = fs.readFileSync(filePath, 'utf8');
-  html = html.replace('<head>', `<head>\n  <script>window.__BASE_PATH__ = '${req.baseUrl}';</script>`);
+  html = html.replace('<head>', `<head>\n  <script>window.__BASE_PATH__ = '${BASE_PATH}';</script>`);
   res.type('html').send(html);
 }
 
 // Serve login.html and its assets without auth
 router.get('/login.html', (req, res) => {
-  serveHtmlWithBasePath(path.join(__dirname, 'login.html'), req, res);
+  serveHtmlWithBasePath(path.join(__dirname, 'login.html'), res);
 });
 
 // Protect index.html — redirect to login if not authenticated
 router.get('/', (req, res) => {
   if (!req.session || !req.session.userId) {
-    return res.redirect(req.baseUrl + '/login.html');
+    return res.redirect(BASE_PATH + '/login.html');
   }
-  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), req, res);
+  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), res);
 });
 
 router.get('/index.html', (req, res) => {
   if (!req.session || !req.session.userId) {
-    return res.redirect(req.baseUrl + '/login.html');
+    return res.redirect(BASE_PATH + '/login.html');
   }
-  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), req, res);
+  serveHtmlWithBasePath(path.join(__dirname, 'index.html'), res);
 });
 
 // Settings page — protected
 router.get('/settings.html', (req, res) => {
   if (!req.session || !req.session.userId) {
-    return res.redirect(req.baseUrl + '/login.html');
+    return res.redirect(BASE_PATH + '/login.html');
   }
-  serveHtmlWithBasePath(path.join(__dirname, 'settings.html'), req, res);
+  serveHtmlWithBasePath(path.join(__dirname, 'settings.html'), res);
 });
 
 // Static files (CSS, JS, fonts) — served to everyone
@@ -427,7 +427,7 @@ router.post('/api/restore', requireAuth, (req, res) => {
 });
 
 // ── Mount router at BASE_PATH ─────────────────────────────────────────
-app.use(BASE_PATH || '/', router);
+app.use('/', router);
 
 // ── Graceful shutdown ───────────────────────────────────────────────────
 process.on('SIGINT',  () => { db.close(); process.exit(0); });
