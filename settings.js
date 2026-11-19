@@ -117,8 +117,14 @@ async function save() {
       window.location.href = BASE + '/login.html';
       return;
     }
+    if (res.status === 409) {
+      alert('This page was out of date (the tracker was changed in another tab or device). It will reload with the latest settings. Please re-enter your last change.');
+      window.location.reload();
+      return;
+    }
     if (res.ok) {
       const saved = await res.json();
+      data.rev = saved.rev;
       // Update server-managed data (IDs) but preserve local settings
       // to avoid overwriting changes made while save was in flight
       data.income = saved.income;

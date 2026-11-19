@@ -260,6 +260,11 @@ const stmts = {
   upsertSetting: db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)'),
 };
 
+function currentRev() {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'rev'").get();
+  return row ? parseInt(row.value, 10) || 0 : 0;
+}
+
 // ── Protected API routes ────────────────────────────────────────────────
 router.get('/api/data', requireAuth, (req, res) => {
   const income   = stmts.allIncome.all();
@@ -284,6 +289,7 @@ router.get('/api/data', requireAuth, (req, res) => {
     taxYear: settings.taxYear ?? '',
     csvImportExport: settings.csvImportExport === 'true',
     shops: JSON.parse(settings.shops || '[]'),
+    rev: parseInt(settings.rev || '0', 10),
   });
 });
 
@@ -293,7 +299,18 @@ router.post('/api/data', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Invalid data' });
   }
 
+  // Each save replaces everything, so a page holding older data (another tab,
+  // the phone, the offline copy) would wipe newer entries. Only accept a save
+  // from a page that has the latest revision.
   const sync = db.transaction(() => {
+    const cur = currentRev();
+    if (Number(body.rev) !== cur) {
+      const err = new Error('stale');
+      err.stale = true;
+      throw err;
+    }
+    stmts.upsertSetting.run('rev', String(cur + 1));
+
     db.exec('DELETE FROM income');
     for (const e of (body.income || [])) {
       stmts.insertIncome.run(e.date || null, e.desc || null, parseFloat(e.amount) || 0);
@@ -353,8 +370,12 @@ router.post('/api/data', requireAuth, (req, res) => {
       taxYear: settings.taxYear ?? '',
       csvImportExport: settings.csvImportExport === 'true',
       shops: JSON.parse(settings.shops || '[]'),
+      rev: parseInt(settings.rev || '0', 10),
     });
   } catch (err) {
+    if (err.stale) {
+      return res.status(409).json({ error: 'stale', message: 'This page has older data than the server.' });
+    }
     console.error('Save transaction failed:', err);
     res.status(500).json({ error: 'Failed to save data: ' + err.message });
   }
@@ -410,11 +431,14 @@ router.post('/api/restore', requireAuth, (req, res) => {
       stmts.insertRecurring.run(e.cat || null, e.desc || null, parseFloat(e.amount) || 0, e.start_date || null, e.end_date || null);
     }
 
+    const cur = currentRev();
     if (body.settings) {
       for (const [key, value] of Object.entries(body.settings)) {
+        if (key === 'rev') continue;
         stmts.upsertSetting.run(key, String(value));
       }
     }
+    stmts.upsertSetting.run('rev', String(cur + 1));
   });
 
   try {
@@ -433,6 +457,6 @@ app.use('/', router);
 process.on('SIGINT',  () => { db.close(); process.exit(0); });
 process.on('SIGTERM', () => { db.close(); process.exit(0); });
 
-app.listen(PORT, () => {
+app.listen(PORT, process.env.HOST || '127.0.0.1', () => {
   console.log(`Tax Tracker running at http://localhost:${PORT}`);
 });
