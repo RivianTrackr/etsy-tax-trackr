@@ -59,7 +59,19 @@ function migrateData() {
   data.defaultCategory = data.defaultCategory ?? 'Supplies';
 }
 
-async function save() {
+// Saves run one at a time, so each one carries the revision the last one returned.
+let saveChain = Promise.resolve();
+function save() {
+  saveChain = saveChain.then(doSave, doSave);
+  return saveChain;
+}
+
+function reloadStale() {
+  alert('This page was out of date (the tracker was changed in another tab or device). It will reload with the latest entries. Please re-enter your last change.');
+  window.location.reload();
+}
+
+async function doSave() {
   localStorage.setItem('etsyTaxData', JSON.stringify(data));
   try {
     const res = await fetch(BASE + '/api/data', {
@@ -69,6 +81,10 @@ async function save() {
     });
     if (res.status === 401) {
       window.location.href = BASE + '/login.html';
+      return;
+    }
+    if (res.status === 409) {
+      reloadStale();
       return;
     }
     if (res.ok) {
@@ -685,7 +701,13 @@ async function deleteEntry(type, id) {
   await save(); render();
 }
 
-function updateSetAside(val)    { data.setAside    = parseFloat(val) || 0; render(); save(); }
+let setAsideTimer = null;
+function updateSetAside(val) {
+  data.setAside = parseFloat(val) || 0;
+  render();
+  clearTimeout(setAsideTimer);
+  setAsideTimer = setTimeout(save, 800);
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────
 const today = new Date().toISOString().split('T')[0];
